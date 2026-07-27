@@ -400,7 +400,7 @@ tbody td { padding: 9px 10px; vertical-align: middle; }
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 22px;
-  width: 460px;
+  width: 500px;
   max-width: 100%;
   box-shadow: 0 24px 70px rgba(0,0,0,0.5);
 }
