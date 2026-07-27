@@ -388,7 +388,9 @@ tbody td { padding: 9px 10px; vertical-align: middle; }
 .modal {
   position: fixed; inset: 0;
   background: rgba(4,5,8,0.65);
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 24px 12px;
+  overflow-y: auto;
   z-index: 200;
 }
 .modal.hidden { display: none; }
@@ -399,11 +401,12 @@ tbody td { padding: 9px 10px; vertical-align: middle; }
   border-radius: 14px;
   padding: 22px;
   width: 460px;
+  max-width: 100%;
   box-shadow: 0 24px 70px rgba(0,0,0,0.5);
 }
 .settings-card {
   /* Keep the three download settings inside the dialog at every window size. */
-  max-height: calc(100vh - 24px);
+  max-height: calc(100vh - 48px);
   overflow-y: auto;
 }
 .modal-card h2 { margin: 0 0 16px; font-size: 15px; font-weight: 700; }
@@ -480,8 +483,6 @@ tbody td { padding: 9px 10px; vertical-align: middle; }
 
 @media (max-width: 540px) {
   .modal {
-    align-items: flex-start;
-    overflow-y: auto;
     padding: 12px;
   }
   .modal-card {
