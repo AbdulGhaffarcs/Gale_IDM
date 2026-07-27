@@ -120,6 +120,9 @@ function startAutoUpdater() {
   autoUpdater.on('update-available', (info) => {
     setUpdateStatus('downloading', `Version ${info.version} is downloading…`, info.version);
     showUpdateNotification('Gale update available', `Version ${info.version} is downloading in the background.`);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('app-update:toast', { type: 'available', version: info.version });
+    }
   });
   autoUpdater.on('update-not-available', () => {
     setUpdateStatus('current', `Gale ${app.getVersion()} is up to date.`);
@@ -131,6 +134,9 @@ function startAutoUpdater() {
       `Version ${info.version} is ready to install. Click to restart Gale and install it.`,
       promptToInstallUpdate
     );
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('app-update:toast', { type: 'ready', version: info.version });
+    }
     promptToInstallUpdate();
   });
   autoUpdater.on('error', (err) => {

@@ -446,6 +446,37 @@ el('toast-dismiss').addEventListener('click', () => {
   el('clipboard-toast').classList.add('hidden');
 });
 
+// ---------- Update toast listener ----------
+
+window.gale.onAppUpdateToast((data) => {
+  if (data.type === 'ready') {
+    showUpdateToast('Update ready', data.version, () => {
+      // Trigger the quit and install
+      window.gale.checkForUpdates().then(() => {
+        // The quitAndInstall is handled by main.js
+      });
+    });
+  }
+});
+
+// ---------- Update toast ----------
+
+let updateToastAction = null;
+function showUpdateToast(message, version, onInstall) {
+  el('update-toast-text').textContent = `Gale ${version} is ready — click Install to restart and update.`;
+  updateToastAction = onInstall;
+  el('update-toast').classList.remove('hidden');
+}
+function hideUpdateToast() {
+  el('update-toast').classList.add('hidden');
+  updateToastAction = null;
+}
+el('update-toast-install').addEventListener('click', () => {
+  if (updateToastAction) updateToastAction();
+  hideUpdateToast();
+});
+el('update-toast-dismiss').addEventListener('click', hideUpdateToast);
+
 // ---------- select-all ----------
 
 el('select-all').addEventListener('change', (e) => {

@@ -30,4 +30,5 @@ contextBridge.exposeInMainWorld('gale', {
   onTick: (cb) => ipcRenderer.on('downloads:tick', (_e, list) => cb(list)),
   onClipboardDetected: (cb) => ipcRenderer.on('clipboard:detected', (_e, url) => cb(url)),
   onAppUpdateStatus: (cb) => ipcRenderer.on('app-update:status', (_e, status) => cb(status)),
+  onAppUpdateToast: (cb) => ipcRenderer.on('app-update:toast', (_e, data) => cb(data)),
 });
