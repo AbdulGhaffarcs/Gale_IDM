@@ -367,6 +367,14 @@ el('add-confirm').addEventListener('click', async () => {
 
 // ---------- Settings modal ----------
 
+function renderUpdateStatus(status) {
+  if (!status) return;
+  el('update-current-version').textContent = status.currentVersion || '';
+  el('update-status').textContent = status.message || 'Updates are checked automatically.';
+  const checking = status.state === 'checking' || status.state === 'downloading';
+  el('check-for-updates').disabled = checking || status.state === 'unavailable';
+}
+
 async function openSettingsModal() {
   const s = await window.gale.getSettings();
   el('set-dir').value = s.downloadDir;
@@ -376,6 +384,7 @@ async function openSettingsModal() {
   el('set-clipboard').checked = s.clipboardMonitor;
   el('set-token-warning').classList.add('hidden');
   el('set-token').value = await window.gale.getBrowserToken();
+  renderUpdateStatus(await window.gale.getUpdateStatus());
   el('settings-modal').classList.remove('hidden');
 }
 function closeSettingsModal() { el('settings-modal').classList.add('hidden'); }
@@ -402,6 +411,11 @@ el('set-token-regen').addEventListener('click', async () => {
   el('set-token').value = await window.gale.regenerateBrowserToken();
   el('set-token-warning').classList.remove('hidden');
 });
+el('check-for-updates').addEventListener('click', async () => {
+  renderUpdateStatus({ state: 'checking', message: 'Checking for updates…' });
+  renderUpdateStatus(await window.gale.checkForUpdates());
+});
+window.gale.onAppUpdateStatus(renderUpdateStatus);
 el('set-save').addEventListener('click', async () => {
   await window.gale.saveSettings({
     downloadDir: el('set-dir').value.trim(),

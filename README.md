@@ -23,6 +23,8 @@ so `npm install` works on any Linux distro without a build toolchain.
   are verified against the expected `Content-Length` before a segment is
   ever marked done.
 - **System tray** — keeps running in the background like IDM does.
+- **Automatic updates** — installed releases check GitHub for new versions,
+  notify the user, and offer to download and install the update.
 
 ## Requirements
 
@@ -49,6 +51,37 @@ npm run dist
 Output lands in `dist/`. This uses `electron-builder`, which will download
 Electron's prebuilt Linux binaries the first time you run it — make sure
 you're online.
+
+## Installing and updating Gale
+
+The `.deb` file is Gale's system installer for Ubuntu, Debian, Linux Mint, and
+other Debian-based distributions. Install it once using your desktop software
+installer or:
+
+```bash
+sudo apt install ./dist/gale-download-manager_1.0.1_amd64.deb
+```
+
+After the first installed release, Gale checks the project's GitHub Releases
+at startup. When a newer version is available, it shows a desktop notification,
+downloads the update in the background, and offers **Restart and install**.
+The final installation may request the administrator password; users do not
+need to run `dpkg` manually for later updates.
+
+### Publishing an update
+
+The repository includes a GitHub Actions workflow that publishes a release
+whenever a version tag is pushed. Update the version, commit it, and push a
+matching tag:
+
+```bash
+npm version patch
+git push origin main --follow-tags
+```
+
+GitHub Actions builds the AppImage and `.deb`, creates the GitHub Release, and
+uploads the update metadata used by installed copies of Gale. The first
+release should be tagged `v1.0.1` for this version.
 
 ## Browser integration (Chrome, Chromium, Brave, Edge)
 
@@ -78,7 +111,7 @@ code into the extension's options page.
 ## Project layout
 
 ```
-main.js                 Electron main process: window, tray, IPC, clipboard watcher
+main.js                 Electron main process: window, tray, IPC, clipboard watcher, updater
 preload.js               contextBridge — the only surface the renderer can call into main
 src/downloadManager.js   The actual download engine (segmenting, pause/resume, retries)
 src/store.js             Tiny atomic JSON persistence layer (no native deps)

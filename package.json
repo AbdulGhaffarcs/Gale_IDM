@@ -1,14 +1,14 @@
 {
   "name": "gale-download-manager",
   "productName": "Gale",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A fast, segmented, IDM-style download manager for Linux",
   "main": "main.js",
   "author": {
     "name": "AG",
     "email": "ag@localhost"
   },
-  "homepage": "https://github.com/ag/gale-download-manager",
+  "homepage": "https://github.com/AbdulGhaffarcs/Gale_IDM",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
@@ -36,9 +36,16 @@
       "category": "Network",
       "maintainer": "AG <ag@localhost>",
       "icon": "assets/icon.png"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "AbdulGhaffarcs",
+      "repo": "Gale_IDM",
+      "releaseType": "release"
     }
   },
   "dependencies": {
-    "dist": "^0.1.2"
+    "dist": "^0.1.2",
+    "electron-updater": "^6.8.9"
   }
 }

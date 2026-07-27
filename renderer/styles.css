@@ -458,6 +458,20 @@ tbody td { padding: 9px 10px; vertical-align: middle; }
 .browser-integration button { align-self: flex-start; margin-top: 10px; }
 .browser-integration code { background: var(--bg-elevated); padding: 1px 5px; border-radius: 4px; font-family: var(--font-mono); font-size: 11px; }
 
+.software-updates {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.software-updates strong { color: var(--text); font-size: 12.5px; }
+.update-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 4px; }
+.update-row span { min-width: 0; }
+
 .form-error { color: var(--error); font-size: 11.5px; margin: 10px 0 0; }
 
 .modal-actions {

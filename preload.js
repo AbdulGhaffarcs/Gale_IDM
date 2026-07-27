@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('gale', {
 
   getSettings: () => ipcRenderer.invoke('settings:get'),
   saveSettings: (patch) => ipcRenderer.invoke('settings:save', patch),
+  getUpdateStatus: () => ipcRenderer.invoke('updates:getStatus'),
+  checkForUpdates: () => ipcRenderer.invoke('updates:check'),
   chooseDir: () => ipcRenderer.invoke('dialog:chooseDir'),
   readClipboard: () => ipcRenderer.invoke('clipboard:read'),
   openBrowserExtensionFolder: () => ipcRenderer.invoke('browserIntegration:openExtensionFolder'),
@@ -27,4 +29,5 @@ contextBridge.exposeInMainWorld('gale', {
   onBulkUpdate: (cb) => ipcRenderer.on('downloads:bulk-update', () => cb()),
   onTick: (cb) => ipcRenderer.on('downloads:tick', (_e, list) => cb(list)),
   onClipboardDetected: (cb) => ipcRenderer.on('clipboard:detected', (_e, url) => cb(url)),
+  onAppUpdateStatus: (cb) => ipcRenderer.on('app-update:status', (_e, status) => cb(status)),
 });
