@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Gale — Pairing</title>
+<link rel="stylesheet" href="options.css" />
+</head>
+<body>
+<div class="wrap">
+  <h1>Gale Browser Integration</h1>
+  <p>Open Gale, go to <strong>Settings</strong>, and copy the pairing code shown there. Paste it below.</p>
+
+  <label for="token">Pairing code</label>
+  <input id="token" type="text" autocomplete="off" spellcheck="false" placeholder="Paste the code from Gale &gt; Settings" />
+
+  <div class="row">
+    <button id="save">Save</button>
+    <button id="test" class="secondary">Test connection</button>
+  </div>
+
+  <p id="status" class="status"></p>
+</div>
+<script src="options.js"></script>
+</body>
+</html>

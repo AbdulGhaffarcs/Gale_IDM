@@ -1,0 +1,221 @@
+/* Gale Download Manager - YouTube Content Script Styles */
+
+.gale-dl-btn {
+  position: fixed;
+  bottom: 90px;
+  right: 20px;
+  z-index: 999999;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #4fd1c5;
+  color: #08201d;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(79, 209, 197, 0.4);
+  transition: all 0.2s ease;
+  animation: gale-btn-pulse 2s ease-in-out infinite;
+}
+
+.gale-dl-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 24px rgba(79, 209, 197, 0.6);
+  background: #63dbd0;
+}
+
+.gale-dl-btn:active {
+  transform: scale(0.95);
+}
+
+@keyframes gale-btn-pulse {
+  0%, 100% { box-shadow: 0 4px 16px rgba(79, 209, 197, 0.4); }
+  50% { box-shadow: 0 4px 24px rgba(79, 209, 197, 0.7); }
+}
+
+/* Popup */
+.gale-dl-popup {
+  position: fixed;
+  z-index: 9999999;
+  width: 340px;
+  background: #1d222b;
+  border: 1px solid #262c37;
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px) scale(0.95);
+  transition: all 0.2s ease;
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
+}
+
+.gale-dl-popup.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+}
+
+/* Header */
+.gale-dl-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: #191d24;
+  border-bottom: 1px solid #262c37;
+}
+
+.gale-dl-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #4fd1c5;
+  letter-spacing: 0.02em;
+}
+
+.gale-dl-close {
+  background: none;
+  border: none;
+  color: #8b93a1;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.gale-dl-close:hover {
+  color: #e6e8eb;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Body */
+.gale-dl-body {
+  padding: 14px;
+}
+
+/* Video info */
+.gale-dl-video-info {
+  margin-bottom: 12px;
+}
+
+.gale-dl-video-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #e6e8eb;
+  margin-bottom: 4px;
+  line-height: 1.4;
+  max-height: 38px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.gale-dl-video-url {
+  font-size: 10.5px;
+  color: #5b6472;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Quality selector */
+.gale-dl-options {
+  margin-bottom: 12px;
+}
+
+.gale-dl-label {
+  display: block;
+  font-size: 10.5px;
+  color: #8b93a1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+
+.gale-dl-select {
+  width: 100%;
+  background: #262c37;
+  border: 1px solid #363d4a;
+  color: #e6e8eb;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-family: inherit;
+  cursor: pointer;
+  appearance: auto;
+}
+
+.gale-dl-select:focus {
+  outline: none;
+  border-color: #4fd1c5;
+}
+
+/* Download button */
+.gale-dl-start-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #4fd1c5;
+  color: #08201d;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.gale-dl-start-btn:hover {
+  background: #63dbd0;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(79, 209, 197, 0.3);
+}
+
+.gale-dl-start-btn:active {
+  transform: translateY(0);
+}
+
+.gale-dl-start-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Status */
+.gale-dl-status {
+  margin-top: 10px;
+  font-size: 12px;
+  text-align: center;
+  min-height: 18px;
+  transition: all 0.2s;
+}
+
+.gale-dl-status.loading {
+  color: #8b93a1;
+}
+
+.gale-dl-status.success {
+  color: #62c98f;
+}
+
+.gale-dl-status.error {
+  color: #ef6a6a;
+}

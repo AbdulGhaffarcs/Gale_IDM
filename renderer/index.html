@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self'" />
+<title>Gale</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div id="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">
+        <svg viewBox="0 0 24 24" width="17" height="17"><path fill="currentColor" d="M3 12c3-6 8-9 13-8-1 3-1 6 1 8-3 6-8 9-13 8 1-3 1-6-1-8z"/></svg>
+      </span>
+      <span class="brand-name">Gale</span>
+    </div>
+
+    <button id="btn-add" class="new-download-btn">
+      <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+      New Download
+      <span id="add-badge" class="new-download-badge hidden"></span>
+    </button>
+
+    <nav class="nav-section">
+      <div class="nav-heading">Downloads</div>
+      <button class="nav-item active" data-cat="__all">
+        <span class="nav-dot dot-all"></span><span class="nav-label">All</span><span class="nav-count" data-count="__all">0</span>
+      </button>
+      <button class="nav-item" data-cat="__unfinished">
+        <span class="nav-dot dot-unfinished"></span><span class="nav-label">Unfinished</span><span class="nav-count" data-count="__unfinished">0</span>
+      </button>
+      <button class="nav-item" data-cat="__finished">
+        <span class="nav-dot dot-finished"></span><span class="nav-label">Finished</span><span class="nav-count" data-count="__finished">0</span>
+      </button>
+    </nav>
+
+    <nav class="nav-section">
+      <div class="nav-heading">Categories</div>
+      <button class="nav-item" data-cat="Images"><span class="nav-dot dot-images"></span><span class="nav-label">Images</span><span class="nav-count" data-count="Images">0</span></button>
+      <button class="nav-item" data-cat="Video"><span class="nav-dot dot-video"></span><span class="nav-label">Video</span><span class="nav-count" data-count="Video">0</span></button>
+      <button class="nav-item" data-cat="Music"><span class="nav-dot dot-music"></span><span class="nav-label">Music</span><span class="nav-count" data-count="Music">0</span></button>
+      <button class="nav-item" data-cat="Documents"><span class="nav-dot dot-documents"></span><span class="nav-label">Documents</span><span class="nav-count" data-count="Documents">0</span></button>
+      <button class="nav-item" data-cat="Programs"><span class="nav-dot dot-programs"></span><span class="nav-label">Programs</span><span class="nav-count" data-count="Programs">0</span></button>
+      <button class="nav-item" data-cat="Compressed"><span class="nav-dot dot-compressed"></span><span class="nav-label">Compressed</span><span class="nav-count" data-count="Compressed">0</span></button>
+      <button class="nav-item" data-cat="Other"><span class="nav-dot dot-other"></span><span class="nav-label">Other</span><span class="nav-count" data-count="Other">0</span></button>
+    </nav>
+
+    <button id="open-settings" class="sidebar-footer-btn">
+      <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7zm8.94 2.5a7.94 7.94 0 00-.14-1.5l2.11-1.65a.5.5 0 00.12-.64l-2-3.46a.5.5 0 00-.6-.22l-2.49 1a8.1 8.1 0 00-1.3-.75l-.38-2.65A.5.5 0 0015.7 1h-4a.5.5 0 00-.5.43l-.38 2.65c-.46.2-.9.45-1.3.75l-2.49-1a.5.5 0 00-.6.22l-2 3.46a.5.5 0 00.12.64L6.66 9.5c-.06.5-.1.99-.1 1.5s.04 1 .1 1.5l-2.11 1.65a.5.5 0 00-.12.64l2 3.46c.14.24.42.32.6.22l2.49-1c.4.3.84.55 1.3.75l.38 2.65c.06.25.28.43.5.43h4c.25 0 .46-.18.5-.43l.38-2.65c.46-.2.9-.45 1.3-.75l2.49 1c.24.1.5 0 .6-.22l2-3.46a.5.5 0 00-.12-.64L20.8 12.5c.06-.5.1-.99.1-1.5z"/></svg>
+      Settings
+    </button>
+  </aside>
+
+  <main class="content">
+    <header class="topbar">
+      <div class="search-field">
+        <svg viewBox="0 0 24 24" width="14" height="14"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M11 4a7 7 0 100 14 7 7 0 000-14zM21 21l-4.35-4.35"/></svg>
+        <input id="search" type="text" placeholder="Filter downloads…" />
+      </div>
+
+      <div class="control-cluster">
+        <button id="btn-start-queue" class="ctrl-btn" title="Start queue">
+          <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+        </button>
+        <button id="btn-stop-queue" class="ctrl-btn" title="Stop queue">
+          <svg viewBox="0 0 24 24" width="15" height="15"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>
+        </button>
+        <span class="ctrl-div"></span>
+        <button id="btn-resume" class="ctrl-btn" title="Resume selected">
+          <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+        </button>
+        <button id="btn-pause" class="ctrl-btn" title="Pause selected">
+          <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+        </button>
+        <button id="btn-remove" class="ctrl-btn" title="Remove selected">
+          <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-8 0v13a1 1 0 001 1h8a1 1 0 001-1V7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>
+        </button>
+        <span class="ctrl-div"></span>
+        <button id="btn-clear-finished" class="ctrl-btn ctrl-btn-wide" title="Clear finished">
+          <svg viewBox="0 0 24 24" width="14" height="14"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M5 6h14M9 6V4h6v2m-9 0l1 14h8l1-14"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="table-wrap">
+      <table id="downloads-table">
+        <thead>
+          <tr>
+            <th class="col-check"><input type="checkbox" id="select-all"/></th>
+            <th class="col-name sortable" data-sort="filename">Name</th>
+            <th class="col-size sortable" data-sort="totalSize">Size</th>
+            <th class="col-status sortable" data-sort="status">Status</th>
+            <th class="col-speed sortable" data-sort="speed">Speed</th>
+            <th class="col-eta sortable" data-sort="eta">Time left</th>
+            <th class="col-date sortable" data-sort="addedAt">Added</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+      <div id="empty-state" class="empty-state hidden">
+        <svg viewBox="0 0 24 24" width="42" height="42"><path fill="none" stroke="currentColor" stroke-width="1.3" d="M3 12c3-6 8-9 13-8-1 3-1 6 1 8-3 6-8 9-13 8 1-3 1-6-1-8z"/></svg>
+        <p>No downloads here</p>
+        <span>Paste a link (including YouTube URLs) into <b>New Download</b>, or copy one anywhere and Gale will offer to grab it.</span>
+      </div>
+    </div>
+
+    <footer class="statusbar">
+      <span id="status-summary">0 active · 0 queued</span>
+      <div class="statusbar-pill">
+        <span id="status-selected"><svg viewBox="0 0 24 24" width="12" height="12"><path fill="none" stroke="currentColor" stroke-width="1.8" d="M4 7h16M4 12h16M4 17h10"/></svg>0</span>
+        <span id="status-speed"><svg viewBox="0 0 24 24" width="12" height="12"><path fill="none" stroke="currentColor" stroke-width="1.8" d="M12 4v11m0 0l-4-4m4 4l4-4M5 19h14"/></svg>0 KB/s</span>
+      </div>
+    </footer>
+  </main>
+</div>
+
+<!-- Add Download modal -->
+<div id="add-modal" class="modal hidden">
+  <div class="modal-card">
+    <h2>New download</h2>
+    <label class="field-label">URL</label>
+    <input id="add-url" type="text" class="text-input" placeholder="https://example.com/file.zip or YouTube URL" />
+    <div class="field-row">
+      <div class="field-col">
+        <label class="field-label">Save to</label>
+        <div class="dir-row">
+          <input id="add-dir" type="text" class="text-input" readonly />
+          <button id="add-browse" class="btn">Browse</button>
+        </div>
+      </div>
+      <div id="add-segments-row" class="field-col field-col-narrow">
+        <label class="field-label">Connections</label>
+        <input id="add-segments" type="number" min="1" max="16" class="text-input" />
+      </div>
+      <div id="add-quality-row" class="field-col field-col-narrow hidden">
+        <label class="field-label">Quality</label>
+        <select id="add-quality" class="text-input">
+          <option value="best">Best quality</option>
+          <option value="1080">1080p</option>
+          <option value="720">720p</option>
+          <option value="480">480p</option>
+          <option value="audio">Audio only</option>
+        </select>
+      </div>
+    </div>
+    <p id="add-error" class="form-error hidden"></p>
+    <div class="modal-actions">
+      <button id="add-cancel" class="btn">Cancel</button>
+      <button id="add-confirm" class="btn btn-primary">Start download</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div id="settings-modal" class="modal hidden">
+  <div class="modal-card settings-card">
+    <h2>Settings</h2>
+
+    <label class="field-label">Default download folder</label>
+    <div class="dir-row">
+      <input id="set-dir" type="text" class="text-input" readonly />
+      <button id="set-browse" class="btn">Browse</button>
+    </div>
+
+    <div class="field-row settings-download-fields">
+      <div class="field-col field-col-narrow">
+        <label class="field-label">Max simultaneous downloads</label>
+        <input id="set-maxconc" type="number" min="1" max="10" class="text-input" />
+      </div>
+      <div class="field-col field-col-narrow">
+        <label class="field-label">Connections per file</label>
+        <input id="set-maxseg" type="number" min="1" max="16" class="text-input" />
+      </div>
+      <div class="field-col field-col-narrow">
+        <label class="field-label">Speed limit (KB/s, 0 = unlimited)</label>
+        <input id="set-speed" type="number" min="0" class="text-input" />
+      </div>
+    </div>
+
+    <label class="toggle-row">
+      <input id="set-clipboard" type="checkbox" />
+      Watch clipboard for download links
+    </label>
+
+    <div class="browser-integration">
+      <strong>Browser integration</strong>
+      <span>In Chrome, Chromium, Brave, or Edge: open <code>chrome://extensions</code>, enable Developer mode, then choose <em>Load unpacked</em> and select Gale’s extension folder.</span>
+      <button id="open-browser-extension" class="btn">Open extension folder</button>
+
+      <label class="field-label" style="margin-top:14px">Pairing code</label>
+      <span style="display:block;margin-bottom:6px">Paste this into the extension's options page (right-click its toolbar icon → Options) so only your extension can send downloads to Gale.</span>
+      <div class="dir-row">
+        <input id="set-token" type="text" class="text-input mono" readonly />
+        <button id="set-token-copy" class="btn">Copy</button>
+      </div>
+      <button id="set-token-regen" class="btn" style="margin-top:8px">Regenerate code</button>
+      <span id="set-token-warning" class="form-error hidden" style="margin-top:6px">A new code was generated. The old code no longer works — re-pair the extension with the new one shown above.</span>
+    </div>
+
+    <div class="modal-actions">
+      <button id="set-cancel" class="btn">Cancel</button>
+      <button id="set-save" class="btn btn-primary">Save settings</button>
+    </div>
+  </div>
+</div>
+
+<!-- Clipboard detection toast -->
+<div id="clipboard-toast" class="toast hidden">
+  <span id="toast-text">New download link detected</span>
+  <button id="toast-add" class="btn btn-primary btn-sm">Add</button>
+  <button id="toast-dismiss" class="btn btn-sm">Dismiss</button>
+</div>
+
+<script src="renderer.js"></script>
+</body>
+</html>
