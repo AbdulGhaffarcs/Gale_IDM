@@ -538,6 +538,7 @@ async function openSettingsModal() {
   el('set-maxseg').value = s.maxSegments;
   el('set-speed').value = s.speedLimitKBs;
   el('set-clipboard').checked = s.clipboardMonitor;
+  el('set-ytdlp-cookies-browser').value = s.ytdlpCookiesBrowser || '';
   el('set-token-warning').classList.add('hidden');
   el('set-token').value = await window.gale.getBrowserToken();
   renderUpdateStatus(await window.gale.getUpdateStatus());
@@ -579,6 +580,7 @@ el('set-save').addEventListener('click', async () => {
     maxSegments: parseInt(el('set-maxseg').value, 10) || 8,
     speedLimitKBs: parseInt(el('set-speed').value, 10) || 0,
     clipboardMonitor: el('set-clipboard').checked,
+    ytdlpCookiesBrowser: el('set-ytdlp-cookies-browser').value,
   });
   closeSettingsModal();
 });

@@ -7,6 +7,7 @@ const { EventEmitter } = require('events');
 
 const DENO_BIN = path.join(os.homedir(), '.deno', 'bin');
 const YTDLP_BIN = path.join(os.homedir(), '.local', 'bin');
+const COOKIE_BROWSERS = new Set(['brave', 'chrome', 'chromium', 'edge', 'firefox', 'opera', 'vivaldi']);
 
 function getEnhancedPath() {
   return [DENO_BIN, YTDLP_BIN, process.env.PATH].filter(Boolean).join(':');
@@ -44,6 +45,30 @@ function findYtDlp() {
   return ['yt-dlp', '/usr/bin/yt-dlp', '/usr/local/bin/yt-dlp', path.join(YTDLP_BIN, 'yt-dlp')];
 }
 
+function normalizeCookiesBrowser(browser) {
+  const value = String(browser || '').trim().toLowerCase();
+  return COOKIE_BROWSERS.has(value) ? value : null;
+}
+
+function commonYtDlpArgs(opts = {}) {
+  const args = [
+    '--no-warnings',
+    '--no-playlist',
+    '--remote-components', 'ejs:github',
+  ];
+  const cookiesBrowser = normalizeCookiesBrowser(opts.cookiesBrowser);
+  if (cookiesBrowser) args.push('--cookies-from-browser', cookiesBrowser);
+  return args;
+}
+
+function enhanceYtDlpError(message) {
+  const text = String(message || '').trim() || 'yt-dlp failed';
+  if (/sign in|not a bot|captcha|cookies|age[- ]restricted|private video|members-only|http error 403|po token/i.test(text)) {
+    return `${text}\n\nYouTube blocked the request. Open Gale Settings and set "YouTube cookies" to the browser where YouTube works, then retry the download. Some YouTube videos may also require a PO Token in yt-dlp.`;
+  }
+  return text;
+}
+
 async function checkYtDlpAvailable() {
   const candidates = findYtDlp();
   for (const bin of candidates) {
@@ -62,16 +87,14 @@ async function checkYtDlpAvailable() {
   return null;
 }
 
-async function getVideoInfo(url) {
+async function getVideoInfo(url, opts = {}) {
   const bin = await checkYtDlpAvailable();
   if (!bin) throw new Error('yt-dlp is not installed. Install it with: pip install yt-dlp');
 
   return new Promise((resolve, reject) => {
     const proc = spawn(bin, [
-      '--no-warnings',
+      ...commonYtDlpArgs(opts),
       '--dump-json',
-      '--no-playlist',
-      '--remote-components', 'ejs:github',
       url,
     ], {
       timeout: 60000,
@@ -86,7 +109,7 @@ async function getVideoInfo(url) {
 
     proc.on('close', (code) => {
       if (code !== 0) {
-        return reject(new Error(stderr || `yt-dlp exited with code ${code}`));
+        return reject(new Error(enhanceYtDlpError(stderr || `yt-dlp exited with code ${code}`)));
       }
       try {
         const info = JSON.parse(stdout);
@@ -114,12 +137,12 @@ async function getVideoInfo(url) {
           formats,
         });
       } catch (e) {
-        reject(new Error(`Failed to parse yt-dlp output: ${e.message}`));
+        reject(new Error(enhanceYtDlpError(`Failed to parse yt-dlp output: ${e.message}`)));
       }
     });
 
     proc.on('error', (err) => {
-      reject(new Error(`Failed to run yt-dlp: ${err.message}`));
+      reject(new Error(enhanceYtDlpError(`Failed to run yt-dlp: ${err.message}`)));
     });
   });
 }
@@ -129,6 +152,7 @@ function downloadVideo(url, opts = {}) {
     outputDir,
     outputFilename,
     quality,
+    cookiesBrowser,
   } = opts;
 
   const emitter = new EventEmitter();
@@ -169,11 +193,9 @@ function downloadVideo(url, opts = {}) {
     const outputTemplate = path.join(outputDir || '.', `${safeName}.%(ext)s`);
 
     const args = [
-      '--no-warnings',
-      '--no-playlist',
+      ...commonYtDlpArgs({ cookiesBrowser }),
       '--newline',
       '--progress',
-      '--remote-components', 'ejs:github',
       '-f', formatSpec,
       '--merge-output-format', 'mp4',
       '-o', outputTemplate,
@@ -247,12 +269,12 @@ function downloadVideo(url, opts = {}) {
       if (code === 0) {
         emitter.emit('done', { success: true });
       } else {
-        emitter.emit('error', new Error(stderr || `yt-dlp exited with code ${code}`));
+        emitter.emit('error', new Error(enhanceYtDlpError(stderr || `yt-dlp exited with code ${code}`)));
       }
     });
 
     proc.on('error', (err) => {
-      if (!cancelled) emitter.emit('error', err);
+      if (!cancelled) emitter.emit('error', new Error(enhanceYtDlpError(err.message)));
     });
   })();
 

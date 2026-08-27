@@ -169,6 +169,7 @@ class DownloadManager extends EventEmitter {
         downloadDir: defaultDir,
         clipboardMonitor: true,
         askSaveLocation: false,
+        ytdlpCookiesBrowser: '',
       },
       this.store.get('settings', {})
     );
@@ -246,13 +247,16 @@ class DownloadManager extends EventEmitter {
       isStreaming: false,
       ytDlpApi: null,
       quality: opts.quality || null,
+      cookiesBrowser: opts.cookiesBrowser || null,
     };
     this.downloads.set(id, record);
     this.emit('update', id);
 
     if (isStreamingUrl(url)) {
       try {
-        const info = await getVideoInfo(url);
+        const info = await getVideoInfo(url, {
+          cookiesBrowser: opts.cookiesBrowser || this.settings.ytdlpCookiesBrowser,
+        });
         const filename = this._uniqueFilename(record.dir, opts.filename || `${info.title}.mp4`);
         record.filename = filename;
         record.totalSize = null;
@@ -437,6 +441,7 @@ class DownloadManager extends EventEmitter {
       outputDir: record.dir,
       outputFilename: record.filename ? path.parse(record.filename).name : undefined,
       quality: record.quality || 'best',
+      cookiesBrowser: record.cookiesBrowser || this.settings.ytdlpCookiesBrowser,
     });
     record.ytDlpApi = api;
 
