@@ -1,6 +1,5 @@
 'use strict';
 const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, Notification, dialog, clipboard, shell } = require('electron');
-const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const os = require('os');
 const { DownloadManager, isStreamingUrl } = require('./src/downloadManager');
@@ -20,6 +19,7 @@ let browserReceiver = null;
 let lastClipboardText = '';
 let updatePromptOpen = false;
 let updateStatus = { state: 'idle', message: 'Updates are checked automatically.' };
+let autoUpdater = null;
 
 const DOWNLOADABLE_RE = /^https?:\/\/\S+\.(zip|rar|7z|tar|gz|bz2|xz|tgz|exe|msi|deb|rpm|appimage|dmg|pkg|apk|iso|mp4|mkv|mov|avi|webm|mp3|flac|wav|pdf|docx?|xlsx?|pptx?|epub)(\?\S*)?$/i;
 const STREAMING_RE = /^https?:\/\/(?:www\.)?(youtube\.com\/|youtu\.be\/|vimeo\.com\/|dailymotion\.com\/|twitch\.tv\/|facebook\.com\/.*\/videos|instagram\.com\/|tiktok\.com\/|twitter\.com\/|x\.com\/|reddit\.com\/|soundcloud\.com\/|bilibili\.com\/)/i;
@@ -85,6 +85,13 @@ function setUpdateStatus(state, message, version = null) {
   }
 }
 
+function getAutoUpdater() {
+  if (!autoUpdater) {
+    autoUpdater = require('electron-updater').autoUpdater;
+  }
+  return autoUpdater;
+}
+
 async function promptToInstallUpdate() {
   if (updatePromptOpen) return;
   updatePromptOpen = true;
@@ -100,7 +107,7 @@ async function promptToInstallUpdate() {
     });
     if (response === 0) {
       app.isQuitting = true;
-      autoUpdater.quitAndInstall();
+      getAutoUpdater().quitAndInstall();
     }
   } finally {
     updatePromptOpen = false;
@@ -114,20 +121,21 @@ function startAutoUpdater() {
     return;
   }
 
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = false;
-  autoUpdater.on('checking-for-update', () => setUpdateStatus('checking', 'Checking for updates…'));
-  autoUpdater.on('update-available', (info) => {
+  const updater = getAutoUpdater();
+  updater.autoDownload = true;
+  updater.autoInstallOnAppQuit = false;
+  updater.on('checking-for-update', () => setUpdateStatus('checking', 'Checking for updates…'));
+  updater.on('update-available', (info) => {
     setUpdateStatus('downloading', `Version ${info.version} is downloading…`, info.version);
     showUpdateNotification('Gale update available', `Version ${info.version} is downloading in the background.`);
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('app-update:toast', { type: 'available', version: info.version });
     }
   });
-  autoUpdater.on('update-not-available', () => {
+  updater.on('update-not-available', () => {
     setUpdateStatus('current', `Gale ${app.getVersion()} is up to date.`);
   });
-  autoUpdater.on('update-downloaded', (info) => {
+  updater.on('update-downloaded', (info) => {
     setUpdateStatus('ready', `Version ${info.version} is ready to install.`, info.version);
     showUpdateNotification(
       'Gale update ready',
@@ -139,13 +147,13 @@ function startAutoUpdater() {
     }
     promptToInstallUpdate();
   });
-  autoUpdater.on('error', (err) => {
+  updater.on('error', (err) => {
     setUpdateStatus('error', 'Could not check for updates. Please try again later.');
     console.warn('Update check failed:', err.message);
   });
 
   // Let the main window and tray initialise before making a network request.
-  setTimeout(() => autoUpdater.checkForUpdates().catch((err) => {
+  setTimeout(() => updater.checkForUpdates().catch((err) => {
     console.warn('Update check failed:', err.message);
   }), 15000);
 }
@@ -193,7 +201,7 @@ function wireIpc() {
       return { ...updateStatus, currentVersion: app.getVersion() };
     }
     try {
-      await autoUpdater.checkForUpdates();
+      await getAutoUpdater().checkForUpdates();
     } catch (err) {
       setUpdateStatus('error', 'Could not check for updates. Please try again later.');
     }
