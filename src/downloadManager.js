@@ -266,8 +266,7 @@ class DownloadManager extends EventEmitter {
         record.title = info.title;
         record.status = 'queued';
       } catch (err) {
-        record.status = 'error';
-        record.error = `Could not get video info: ${err.message}`;
+        this._setError(record, `Could not get video info: ${err.message}`);
       }
     } else {
       try {
@@ -278,8 +277,7 @@ class DownloadManager extends EventEmitter {
         record.category = categorize(record.filename);
         record.status = 'queued';
       } catch (err) {
-        record.status = 'error';
-        record.error = `Could not reach URL: ${err.message}`;
+        this._setError(record, `Could not reach URL: ${err.message}`);
       }
     }
 
@@ -309,6 +307,12 @@ class DownloadManager extends EventEmitter {
     let n = 1;
     while (fs.existsSync(path.join(dir, `${base} (${n})${ext}`))) n += 1;
     return `${base} (${n})${ext}`;
+  }
+
+  _setError(record, message) {
+    record.status = 'error';
+    record.error = message;
+    console.error(`Gale download failed (${record.id})\nURL: ${record.url}\n${message}`);
   }
 
   pause(id) {
@@ -420,8 +424,7 @@ class DownloadManager extends EventEmitter {
       }
       record._fd = fd;
     } catch (err) {
-      record.status = 'error';
-      record.error = `Cannot open file: ${err.message}`;
+      this._setError(record, `Cannot open file: ${err.message}`);
       this.emit('update', record.id);
       this._scheduleNext();
       return;
@@ -486,8 +489,7 @@ class DownloadManager extends EventEmitter {
 
     emitter.on('error', (err) => {
       if (record.status !== 'downloading') return;
-      record.status = 'error';
-      record.error = `yt-dlp error: ${err.message}`;
+      this._setError(record, `yt-dlp error: ${err.message}`);
       record.ytDlpApi = null;
       record._merging = false;
       record._speedStr = '';
@@ -606,8 +608,7 @@ class DownloadManager extends EventEmitter {
         if (record.status !== 'downloading') return; // this was a deliberate pause/abort
         attempt += 1;
         if (attempt > MAX_RETRIES) {
-          record.status = 'error';
-          record.error = `Segment failed after ${MAX_RETRIES} retries: ${err.message}`;
+          this._setError(record, `Segment failed after ${MAX_RETRIES} retries: ${err.message}`);
           this.emit('update', record.id);
           return;
         }
@@ -634,8 +635,7 @@ class DownloadManager extends EventEmitter {
       record.completedAt = Date.now();
       record.speed = 0;
     } else {
-      record.status = 'error';
-      record.error = record.error || 'Download did not complete';
+      this._setError(record, record.error || 'Download did not complete');
     }
     this.emit('update', record.id);
     this.persist();

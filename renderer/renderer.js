@@ -157,6 +157,14 @@ function statusLabel(d, pct = progressPercent(d)) {
   return d._merging && d.status === 'downloading' ? 'Merging…' : statusText(d.status, pct);
 }
 
+function errorSummary(error) {
+  return String(error || '')
+    .replace(/^yt-dlp error:\s*/i, '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)[0] || 'Download failed';
+}
+
 function isPopupActiveStatus(status) {
   return ['probing', 'queued', 'downloading', 'paused', 'error'].includes(status);
 }
@@ -298,6 +306,9 @@ function render() {
     const statusLabelText = statusLabel(d, pct);
     const speedText = d.isStreaming && d._speedStr ? d._speedStr : fmtSpeed(d.speed);
     const meta = categoryMeta(d.category);
+    const statusDetail = d.status === 'error' && d.error
+      ? `<div class="status-error-detail" title="${escapeHtml(d.error)}">${escapeHtml(errorSummary(d.error))}</div>`
+      : '';
 
     tr.innerHTML = `
       <td><div class="accent-strip" style="background:${meta.color}"></div><input type="checkbox" class="row-check" ${state.selected.has(d.id) ? 'checked' : ''}/></td>
@@ -314,6 +325,7 @@ function render() {
       <td>
         <div class="status-cell">
           <span class="status-badge status-${d.status}">${statusLabelText}</span>
+          ${statusDetail}
           ${showBar ? `<div class="status-bar-track"><div class="status-bar-fill ${barClass}" style="width:${pct}%"></div></div>` : ''}
         </div>
       </td>

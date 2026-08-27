@@ -410,6 +410,15 @@ tbody tr:hover td {
 .status-badge.status-completed { color: var(--ok); }
 .status-badge.status-queued,
 .status-badge.status-probing { color: var(--text-muted); }
+.status-error-detail {
+  color: var(--error);
+  font-size: 10.5px;
+  line-height: 1.35;
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .status-bar-track {
   height: 5px; border-radius: 4px;
