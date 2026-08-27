@@ -84,6 +84,54 @@
       </div>
     </header>
 
+    <section class="dashboard-strip" aria-label="Download summary">
+      <button class="dashboard-card" data-dashboard-cat="__all">
+        <span class="dashboard-icon dashboard-icon-all">
+          <svg viewBox="0 0 24 24" width="15" height="15"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M4 7h16M4 12h16M4 17h10"/></svg>
+        </span>
+        <span>
+          <strong id="dash-total">0</strong>
+          <small>Total files</small>
+        </span>
+      </button>
+      <button class="dashboard-card" data-dashboard-cat="__unfinished">
+        <span class="dashboard-icon dashboard-icon-active">
+          <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+        </span>
+        <span>
+          <strong id="dash-active">0</strong>
+          <small>Active now</small>
+        </span>
+      </button>
+      <button class="dashboard-card" data-dashboard-cat="__unfinished">
+        <span class="dashboard-icon dashboard-icon-queued">
+          <svg viewBox="0 0 24 24" width="15" height="15"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M6 8h12M6 12h12M6 16h8"/></svg>
+        </span>
+        <span>
+          <strong id="dash-queued">0</strong>
+          <small>Queued</small>
+        </span>
+      </button>
+      <button class="dashboard-card" data-dashboard-cat="__finished">
+        <span class="dashboard-icon dashboard-icon-done">
+          <svg viewBox="0 0 24 24" width="15" height="15"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 12l4 4L19 6"/></svg>
+        </span>
+        <span>
+          <strong id="dash-finished">0</strong>
+          <small>Finished</small>
+        </span>
+      </button>
+      <div class="dashboard-card dashboard-card-static">
+        <span class="dashboard-icon dashboard-icon-speed">
+          <svg viewBox="0 0 24 24" width="15" height="15"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 4v11m0 0l-4-4m4 4l4-4M5 19h14"/></svg>
+        </span>
+        <span>
+          <strong id="dash-speed">0 KB/s</strong>
+          <small>Total speed</small>
+        </span>
+      </div>
+    </section>
+
     <div class="table-wrap">
       <table id="downloads-table">
         <thead>
@@ -95,6 +143,7 @@
             <th class="col-speed sortable" data-sort="speed">Speed</th>
             <th class="col-eta sortable" data-sort="eta">Time left</th>
             <th class="col-date sortable" data-sort="addedAt">Added</th>
+            <th class="col-actions">Actions</th>
           </tr>
         </thead>
         <tbody id="table-body"></tbody>

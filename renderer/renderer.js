@@ -100,15 +100,21 @@ function updateCounts() {
     const key = elm.dataset.count;
     elm.textContent = counts[key] || 0;
   });
+  el('dash-total').textContent = counts.__all;
+  el('dash-finished').textContent = counts.__finished;
 }
 
 function updateStatusBar() {
   const active = state.downloads.filter((d) => d.status === 'downloading').length;
   const queued = state.downloads.filter((d) => d.status === 'queued').length;
   const totalSpeed = state.downloads.reduce((s, d) => s + (d.status === 'downloading' ? d.speed : 0), 0);
+  const speedText = fmtSpeed(totalSpeed) === '—' ? '0 KB/s' : fmtSpeed(totalSpeed);
   el('status-summary').textContent = `${active} active · ${queued} queued`;
-  el('status-speed').lastChild.textContent = fmtSpeed(totalSpeed) === '—' ? '0 KB/s' : fmtSpeed(totalSpeed);
+  el('status-speed').lastChild.textContent = speedText;
   el('status-selected').lastChild.textContent = String(state.selected.size);
+  el('dash-active').textContent = active;
+  el('dash-queued').textContent = queued;
+  el('dash-speed').textContent = speedText;
 }
 
 function sortValue(d, key) {
@@ -192,6 +198,38 @@ function popupActionButtons(d) {
   return '';
 }
 
+function rowActionButtons(d) {
+  if (d.status === 'downloading' || d.status === 'queued') {
+    return `<button class="row-action-btn" data-row-action="pause" data-id="${d.id}" title="Pause">
+      <svg viewBox="0 0 24 24" width="13" height="13"><path fill="currentColor" d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+    </button>`;
+  }
+  if (d.status === 'paused' || d.status === 'error') {
+    return `<button class="row-action-btn" data-row-action="resume" data-id="${d.id}" title="Resume">
+      <svg viewBox="0 0 24 24" width="13" height="13"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+    </button>`;
+  }
+  if (d.status === 'completed') {
+    return `
+      <button class="row-action-btn" data-row-action="open" data-id="${d.id}" title="Open">
+        <svg viewBox="0 0 24 24" width="13" height="13"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M8 5h8l3 3v11H8V5zm7 0v4h4"/></svg>
+      </button>
+      <button class="row-action-btn" data-row-action="show" data-id="${d.id}" title="Show in folder">
+        <svg viewBox="0 0 24 24" width="13" height="13"><path fill="currentColor" d="M3 6a2 2 0 012-2h5l2 2h7a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V6z"/></svg>
+      </button>
+    `;
+  }
+  return '<span class="row-action-empty">—</span>';
+}
+
+async function runDownloadAction(action, id) {
+  if (action === 'pause') await window.gale.pause(id);
+  if (action === 'resume') await window.gale.resume(id);
+  if (action === 'show') await window.gale.showInFolder(id);
+  if (action === 'open') await window.gale.openFile(id);
+  refresh();
+}
+
 function renderDownloadPopup() {
   const popup = el('download-popup');
   const body = el('download-popup-body');
@@ -235,10 +273,7 @@ function renderDownloadPopup() {
     btn.addEventListener('click', async (e) => {
       const id = e.currentTarget.dataset.id;
       const action = e.currentTarget.dataset.popupAction;
-      if (action === 'pause') await window.gale.pause(id);
-      if (action === 'resume') await window.gale.resume(id);
-      if (action === 'show') await window.gale.showInFolder(id);
-      refresh();
+      await runDownloadAction(action, id);
     });
   });
 }
@@ -285,11 +320,18 @@ function render() {
       <td class="mono">${d.status === 'downloading' ? speedText : '—'}</td>
       <td class="mono">${fmtTimeLeft(d)}</td>
       <td class="mono">${fmtRelative(d.addedAt)}</td>
+      <td><div class="row-actions">${rowActionButtons(d)}</div></td>
     `;
 
     tr.addEventListener('click', (e) => {
       if (e.target.classList.contains('row-check')) return;
       toggleSelect(d.id, e.shiftKey || e.metaKey || e.ctrlKey);
+    });
+    tr.querySelectorAll('[data-row-action]').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await runDownloadAction(e.currentTarget.dataset.rowAction, e.currentTarget.dataset.id);
+      });
     });
     tr.querySelector('.row-check').addEventListener('change', () => toggleSelect(d.id, true));
     if (d.status === 'error' && d.error) tr.title = d.error;
@@ -364,18 +406,24 @@ window.gale.onTick((list) => {
 // ---------- sidebar nav ----------
 
 document.querySelectorAll('.nav-item').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.nav-item').forEach((b) => b.classList.remove('active'));
-    btn.classList.add('active');
-    state.category = btn.dataset.cat;
-    render();
-  });
+  btn.addEventListener('click', () => setCategory(btn.dataset.cat));
+});
+
+document.querySelectorAll('[data-dashboard-cat]').forEach((btn) => {
+  btn.addEventListener('click', () => setCategory(btn.dataset.dashboardCat));
 });
 
 el('search').addEventListener('input', (e) => {
   state.search = e.target.value;
   render();
 });
+
+function setCategory(cat) {
+  document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('active', b.dataset.cat === cat));
+  document.querySelectorAll('[data-dashboard-cat]').forEach((b) => b.classList.toggle('is-active', b.dataset.dashboardCat === cat));
+  state.category = cat;
+  render();
+}
 
 // ---------- toolbar actions ----------
 
@@ -608,5 +656,6 @@ el('download-popup-minimize').addEventListener('click', () => {
   renderDownloadPopup();
 });
 
+setCategory(state.category);
 refresh();
 setInterval(refresh, 4000); // safety-net poll in case an event was missed
