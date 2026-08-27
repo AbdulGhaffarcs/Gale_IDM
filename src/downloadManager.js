@@ -190,6 +190,10 @@ class DownloadManager extends EventEmitter {
       d.speed = 0;
       d._speedSamples = [];
       d.ytDlpApi = null;
+      d._fd = null;
+      d._merging = false;
+      d._speedStr = '';
+      d._etaStr = '';
       this.downloads.set(d.id, d);
     }
   }
@@ -209,7 +213,7 @@ class DownloadManager extends EventEmitter {
   }
 
   _strip(d) {
-    const { controllers, _speedSamples, ytDlpApi, ...rest } = d;
+    const { controllers, _speedSamples, ytDlpApi, _fd, ...rest } = d;
     return rest;
   }
 
@@ -281,14 +285,18 @@ class DownloadManager extends EventEmitter {
     return id;
   }
 
-  _uniqueFilename(dir, filename) {
+  _safeFilename(filename) {
     // `filename` may come from a remote server's Content-Disposition header, or
     // from the browser-extension loopback receiver (which any local process can
     // reach). Neither is trusted: take the basename only, and drop any residual
     // ".." segments, so a crafted "../../etc/x" can never escape `dir`.
-    const safe = path.basename(String(filename || 'download').replace(/[\\/]+/g, '_'))
+    return path.basename(String(filename || 'download').replace(/[\\/]+/g, '_'))
       .replace(/^\.+/, '')
       .trim() || 'download';
+  }
+
+  _uniqueFilename(dir, filename) {
+    const safe = this._safeFilename(filename);
     let target = path.join(dir, safe);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     if (!fs.existsSync(target)) return safe;
@@ -310,6 +318,10 @@ class DownloadManager extends EventEmitter {
       for (const c of d.controllers) c.abort();
       d.controllers = [];
     }
+    d._merging = false;
+    d._speedStr = '';
+    d._etaStr = '';
+    d.speed = 0;
     this.emit('update', id);
     this.persist();
     this._scheduleNext();
@@ -319,6 +331,12 @@ class DownloadManager extends EventEmitter {
     const d = this.downloads.get(id);
     if (!d || !['paused', 'error'].includes(d.status)) return;
     d.error = null;
+    d.completedAt = null;
+    d._merging = false;
+    d._speedStr = '';
+    d._etaStr = '';
+    d.speed = 0;
+    d._speedSamples = [];
     d.status = 'queued';
     this.emit('update', id);
     this.persist();
@@ -385,7 +403,14 @@ class DownloadManager extends EventEmitter {
 
     try {
       if (!fs.existsSync(record.dir)) fs.mkdirSync(record.dir, { recursive: true });
-      const fd = fs.openSync(full, fs.existsSync(full) ? 'r+' : 'w');
+      if (!record.acceptsRanges && record.segments.some((seg) => seg.downloaded > 0 || seg.status === 'done')) {
+        record.segments = this._buildSegments(record.totalSize, 1);
+        record.bytesDownloaded = 0;
+        record.speed = 0;
+        record._speedSamples = [];
+      }
+      const openMode = record.acceptsRanges && fs.existsSync(full) ? 'r+' : 'w+';
+      const fd = fs.openSync(full, openMode);
       if (record.totalSize) {
         try { fs.ftruncateSync(fd, record.totalSize); } catch (_) { /* some fs don't support sparse resize; ignore */ }
       }
@@ -403,6 +428,10 @@ class DownloadManager extends EventEmitter {
   }
 
   _startYtDlp(record) {
+    record._merging = false;
+    record._speedStr = '';
+    record._etaStr = '';
+    record._speedSamples = [];
     const { emitter, api } = downloadVideo(record.url, {
       format: 'best',
       outputDir: record.dir,
@@ -425,7 +454,7 @@ class DownloadManager extends EventEmitter {
 
     emitter.on('destination', (dest) => {
       const filename = path.basename(dest);
-      record.filename = this._uniqueFilename(record.dir, filename);
+      record.filename = this._safeFilename(filename);
       record.category = categorize(record.filename);
       this.emit('update', record.id);
     });
@@ -442,6 +471,9 @@ class DownloadManager extends EventEmitter {
       record.bytesDownloaded = 100;
       record.totalSize = 100;
       record.ytDlpApi = null;
+      record._merging = false;
+      record._speedStr = '';
+      record._etaStr = '';
       this.emit('update', record.id);
       this.persist();
       this._scheduleNext();
@@ -452,6 +484,9 @@ class DownloadManager extends EventEmitter {
       record.status = 'error';
       record.error = `yt-dlp error: ${err.message}`;
       record.ytDlpApi = null;
+      record._merging = false;
+      record._speedStr = '';
+      record._etaStr = '';
       this.emit('update', record.id);
       this.persist();
       this._scheduleNext();
@@ -479,19 +514,24 @@ class DownloadManager extends EventEmitter {
       if (record.status !== 'downloading') return; // paused/removed mid-flight
       const controller = new AbortController();
       record.controllers[idx] = controller;
-      const startAt = seg.start + seg.downloaded;
+      const useRange = record.acceptsRanges && seg.end != null;
+      const startAt = useRange ? seg.start + seg.downloaded : seg.start;
       if (seg.end != null && startAt > seg.end) { seg.status = 'done'; return; }
 
       try {
-        const headers = seg.end != null ? { Range: `bytes=${startAt}-${seg.end}` } : {};
+        const headers = useRange ? { Range: `bytes=${startAt}-${seg.end}` } : {};
         const { res } = await rawRequest(record.url, { headers, signal: controller.signal });
         if (res.statusCode >= 400) throw new Error(`HTTP ${res.statusCode}`);
+        if (useRange && res.statusCode !== 206) throw new Error('Server did not honor the resume range request');
 
         let position = startAt;
         let received = 0;
         let writeError = null;
         let pendingWrites = 0;
-        const expected = seg.end != null ? seg.end - startAt + 1 : null;
+        const contentLength = Number.parseInt(res.headers['content-length'], 10);
+        const expected = useRange
+          ? seg.end - startAt + 1
+          : (Number.isFinite(contentLength) ? contentLength : record.totalSize);
         const writeAt = (chunk, at) =>
           new Promise((res2, rej2) => {
             fs.write(record._fd, chunk, 0, chunk.length, at, (err) => (err ? rej2(err) : res2()));

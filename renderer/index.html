@@ -116,6 +116,25 @@
   </main>
 </div>
 
+<!-- Download progress popup -->
+<div id="download-popup" class="download-popup hidden" aria-live="polite">
+  <div class="download-popup-head">
+    <div>
+      <strong>Download progress</strong>
+      <span id="download-popup-count">0 active</span>
+    </div>
+    <div class="download-popup-actions">
+      <button id="download-popup-minimize" class="popup-icon-btn" title="Minimize">
+        <svg viewBox="0 0 24 24" width="14" height="14"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M6 12h12"/></svg>
+      </button>
+      <button id="download-popup-close" class="popup-icon-btn" title="Close">
+        <svg viewBox="0 0 24 24" width="14" height="14"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+  </div>
+  <div id="download-popup-body" class="download-popup-body"></div>
+</div>
+
 <!-- Add Download modal -->
 <div id="add-modal" class="modal hidden">
   <div class="modal-card">

@@ -12,6 +12,11 @@ const state = {
 const el = (id) => document.getElementById(id);
 const tableBody = el('table-body');
 const emptyState = el('empty-state');
+const popupState = {
+  dismissed: false,
+  minimized: false,
+  knownIds: new Set(),
+};
 
 function fmtBytes(n) {
   if (n == null) return '—';
@@ -136,6 +141,108 @@ function statusText(status, pct) {
   return status;
 }
 
+function progressPercent(d) {
+  return d.totalSize
+    ? Math.min(100, Math.round((d.bytesDownloaded / d.totalSize) * 100))
+    : (d.status === 'completed' ? 100 : 0);
+}
+
+function statusLabel(d, pct = progressPercent(d)) {
+  return d._merging && d.status === 'downloading' ? 'Merging…' : statusText(d.status, pct);
+}
+
+function isPopupActiveStatus(status) {
+  return ['probing', 'queued', 'downloading', 'paused', 'error'].includes(status);
+}
+
+function shouldShowInPopup(d) {
+  if (isPopupActiveStatus(d.status)) return true;
+  return d.status === 'completed' && d.completedAt && Date.now() - d.completedAt < 12000;
+}
+
+function notePopupDownloads() {
+  const nextIds = new Set();
+  let hasNewDownload = false;
+  for (const d of state.downloads) {
+    nextIds.add(d.id);
+    if (!popupState.knownIds.has(d.id) && ['probing', 'queued', 'downloading'].includes(d.status)) {
+      hasNewDownload = true;
+    }
+  }
+  popupState.knownIds = nextIds;
+  if (hasNewDownload) popupState.dismissed = false;
+}
+
+function popupActionButtons(d) {
+  if (d.status === 'downloading' || d.status === 'queued') {
+    return `<button class="popup-icon-btn" data-popup-action="pause" data-id="${d.id}" title="Pause">
+      <svg viewBox="0 0 24 24" width="13" height="13"><path fill="currentColor" d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+    </button>`;
+  }
+  if (d.status === 'paused' || d.status === 'error') {
+    return `<button class="popup-icon-btn" data-popup-action="resume" data-id="${d.id}" title="Resume">
+      <svg viewBox="0 0 24 24" width="13" height="13"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+    </button>`;
+  }
+  if (d.status === 'completed') {
+    return `<button class="popup-icon-btn" data-popup-action="show" data-id="${d.id}" title="Show in folder">
+      <svg viewBox="0 0 24 24" width="13" height="13"><path fill="currentColor" d="M3 6a2 2 0 012-2h5l2 2h7a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V6z"/></svg>
+    </button>`;
+  }
+  return '';
+}
+
+function renderDownloadPopup() {
+  const popup = el('download-popup');
+  const body = el('download-popup-body');
+  if (!popup || !body) return;
+
+  notePopupDownloads();
+  const items = state.downloads
+    .filter(shouldShowInPopup)
+    .sort((a, b) => {
+      const aActive = a.status === 'downloading' ? 1 : 0;
+      const bActive = b.status === 'downloading' ? 1 : 0;
+      return bActive - aActive || (b.addedAt || 0) - (a.addedAt || 0);
+    })
+    .slice(0, 4);
+  const activeCount = state.downloads.filter((d) => d.status === 'downloading').length;
+
+  popup.classList.toggle('hidden', popupState.dismissed || items.length === 0);
+  popup.classList.toggle('is-minimized', popupState.minimized);
+  el('download-popup-count').textContent = activeCount === 1 ? '1 active' : `${activeCount} active`;
+  if (popupState.minimized) return;
+
+  body.innerHTML = items.map((d) => {
+    const pct = progressPercent(d);
+    const speedText = d.isStreaming && d._speedStr ? d._speedStr : fmtSpeed(d.speed);
+    const detail = d.status === 'downloading'
+      ? `${speedText} · ${fmtTimeLeft(d)}`
+      : statusLabel(d, pct);
+    return `
+      <div class="download-popup-item">
+        <div class="download-popup-item-main">
+          <div class="download-popup-name" title="${escapeHtml(d.filename || '')}">${escapeHtml(d.filename || 'resolving…')}</div>
+          <div class="download-popup-detail">${escapeHtml(detail)}</div>
+          <div class="download-popup-track"><div class="download-popup-fill status-${d.status}" style="width:${pct}%"></div></div>
+        </div>
+        <div class="download-popup-item-actions">${popupActionButtons(d)}</div>
+      </div>
+    `;
+  }).join('');
+
+  body.querySelectorAll('[data-popup-action]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      const id = e.currentTarget.dataset.id;
+      const action = e.currentTarget.dataset.popupAction;
+      if (action === 'pause') await window.gale.pause(id);
+      if (action === 'resume') await window.gale.resume(id);
+      if (action === 'show') await window.gale.showInFolder(id);
+      refresh();
+    });
+  });
+}
+
 function render() {
   let filtered = state.downloads
     .filter((d) => matchesCategory(d, state.category))
@@ -150,10 +257,10 @@ function render() {
     tr.dataset.id = d.id;
     if (state.selected.has(d.id)) tr.classList.add('selected');
 
-    const pct = d.totalSize ? Math.min(100, Math.round((d.bytesDownloaded / d.totalSize) * 100)) : (d.status === 'completed' ? 100 : 0);
+    const pct = progressPercent(d);
     const barClass = d.status === 'paused' ? 'paused' : d.status === 'error' ? 'error' : '';
     const showBar = d.status === 'downloading' || d.status === 'paused';
-    const statusLabel = d._merging ? 'Merging…' : statusText(d.status, pct);
+    const statusLabelText = statusLabel(d, pct);
     const speedText = d.isStreaming && d._speedStr ? d._speedStr : fmtSpeed(d.speed);
     const meta = categoryMeta(d.category);
 
@@ -171,7 +278,7 @@ function render() {
       <td class="mono">${d.isStreaming ? (d.title || '—') : fmtBytes(d.totalSize)}</td>
       <td>
         <div class="status-cell">
-          <span class="status-badge status-${d.status}">${statusLabel}</span>
+          <span class="status-badge status-${d.status}">${statusLabelText}</span>
           ${showBar ? `<div class="status-bar-track"><div class="status-bar-fill ${barClass}" style="width:${pct}%"></div></div>` : ''}
         </div>
       </td>
@@ -197,6 +304,7 @@ function render() {
   updateStatusBar();
   updateToolbarState();
   updateSortIndicators();
+  renderDownloadPopup();
 }
 
 function escapeHtml(s) {
@@ -488,6 +596,16 @@ el('select-all').addEventListener('change', (e) => {
     state.selected.clear();
   }
   render();
+});
+
+el('download-popup-close').addEventListener('click', () => {
+  popupState.dismissed = true;
+  renderDownloadPopup();
+});
+el('download-popup-minimize').addEventListener('click', () => {
+  popupState.minimized = !popupState.minimized;
+  el('download-popup-minimize').title = popupState.minimized ? 'Expand' : 'Minimize';
+  renderDownloadPopup();
 });
 
 refresh();

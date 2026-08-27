@@ -177,6 +177,8 @@ function downloadVideo(url, opts = {}) {
       '-f', formatSpec,
       '--merge-output-format', 'mp4',
       '-o', outputTemplate,
+      '--continue',
+      '--part',
       '--no-overwrites',
       url,
     ];

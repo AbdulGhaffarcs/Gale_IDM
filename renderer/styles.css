@@ -357,6 +357,112 @@ tbody td { padding: 9px 10px; vertical-align: middle; }
 }
 .statusbar-pill span:first-child { border-right: 1px solid var(--border); }
 
+/* ---------------- Download popup ---------------- */
+
+.download-popup {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  width: min(370px, calc(100vw - 28px));
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 18px 55px rgba(0,0,0,0.5);
+  z-index: 70;
+  overflow: hidden;
+}
+.download-popup.hidden { display: none; }
+.download-popup-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 10px 9px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+.download-popup-head strong {
+  display: block;
+  font-size: 12.5px;
+  line-height: 1.2;
+}
+.download-popup-head span {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+.download-popup-actions,
+.download-popup-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.popup-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.popup-icon-btn:hover {
+  background: var(--bg-elevated-2);
+  border-color: var(--border);
+  color: var(--text);
+}
+.download-popup-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 310px;
+  overflow-y: auto;
+}
+.download-popup-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 11px 12px;
+  background: var(--bg-sidebar);
+}
+.download-popup-item + .download-popup-item { border-top: 1px solid var(--border); }
+.download-popup-item-main { min-width: 0; flex: 1; }
+.download-popup-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+.download-popup-detail {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.download-popup-track {
+  height: 4px;
+  margin-top: 8px;
+  background: var(--bg-elevated-2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.download-popup-fill {
+  height: 100%;
+  min-width: 0;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+}
+.download-popup-fill.status-paused { background: var(--warn); }
+.download-popup-fill.status-error { background: var(--error); }
+.download-popup-fill.status-completed { background: var(--ok); }
+.download-popup.is-minimized .download-popup-head { border-bottom: none; }
+.download-popup.is-minimized .download-popup-body { display: none; }
+
 /* ---------------- Buttons (modals) ---------------- */
 
 .btn {
@@ -491,6 +597,11 @@ tbody td { padding: 9px 10px; vertical-align: middle; }
     margin: auto;
   }
   .settings-download-fields { grid-template-columns: 1fr; }
+  .download-popup {
+    right: 10px;
+    bottom: 10px;
+    width: calc(100vw - 20px);
+  }
 }
 
 /* ---------------- Toast ---------------- */
