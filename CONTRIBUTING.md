@@ -1,7 +1,3 @@
-# Contributing
-
-Thank you to all the people who have contributed to Gale_IDM!
-
 ## How to Contribute
 
 We welcome contributions to Gale_IDM! Whether you're fixing bugs, adding features, or improving documentation, your help is appreciated.
