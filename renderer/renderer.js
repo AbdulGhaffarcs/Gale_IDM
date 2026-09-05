@@ -468,6 +468,8 @@ el('btn-stop-queue').addEventListener('click', async () => {
 
 let defaultDir = '';
 let isStreamingUrlDetected = false;
+let detectUrlRequest = 0;
+let addRequestInFlight = false;
 
 async function openAddModal(prefillUrl) {
   const settings = await window.gale.getSettings();
@@ -482,6 +484,7 @@ async function openAddModal(prefillUrl) {
 }
 
 async function detectUrlType(url) {
+  const requestId = ++detectUrlRequest;
   if (!url) {
     isStreamingUrlDetected = false;
     el('add-quality-row').classList.add('hidden');
@@ -490,6 +493,7 @@ async function detectUrlType(url) {
   }
   try {
     const streaming = await window.gale.isStreamingUrl(url);
+    if (requestId !== detectUrlRequest) return streaming;
     isStreamingUrlDetected = streaming;
     if (streaming) {
       el('add-quality-row').classList.remove('hidden');
@@ -499,6 +503,7 @@ async function detectUrlType(url) {
       el('add-segments-row').classList.remove('hidden');
     }
   } catch (_) {
+    if (requestId !== detectUrlRequest) return false;
     isStreamingUrlDetected = false;
     el('add-quality-row').classList.add('hidden');
     el('add-segments-row').classList.remove('hidden');
@@ -515,11 +520,21 @@ el('add-browse').addEventListener('click', async () => {
   if (dir) el('add-dir').value = dir;
 });
 el('add-confirm').addEventListener('click', async () => {
+  if (addRequestInFlight) return;
   const url = el('add-url').value.trim();
   const dir = el('add-dir').value.trim() || defaultDir;
   const segments = parseInt(el('add-segments').value, 10) || 8;
   const quality = el('add-quality').value;
+  if (!url) {
+    el('add-error').textContent = 'Enter a URL first.';
+    el('add-error').classList.remove('hidden');
+    return;
+  }
+  addRequestInFlight = true;
+  el('add-confirm').disabled = true;
+  el('add-error').classList.add('hidden');
   try {
+    await detectUrlType(url);
     const opts = { dir, segments };
     if (isStreamingUrlDetected) {
       opts.quality = quality;
@@ -530,6 +545,9 @@ el('add-confirm').addEventListener('click', async () => {
   } catch (err) {
     el('add-error').textContent = err.message || 'Could not add that URL.';
     el('add-error').classList.remove('hidden');
+  } finally {
+    addRequestInFlight = false;
+    el('add-confirm').disabled = false;
   }
 });
 

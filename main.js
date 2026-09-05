@@ -176,8 +176,12 @@ function wireIpc() {
   ipcMain.handle('downloads:list', () => dm.list());
 
   ipcMain.handle('downloads:add', async (evt, url, opts) => {
-    if (!/^https?:\/\//i.test(url || '')) throw new Error('Please enter a valid http(s) URL');
-    return dm.addDownload(url.trim(), opts || {});
+    const normalizedUrl = String(url || '').trim();
+    if (!/^https?:\/\//i.test(normalizedUrl)) throw new Error('Please enter a valid http(s) URL');
+    const id = await dm.addDownload(normalizedUrl, opts || {});
+    const record = dm.list().find((download) => download.id === id);
+    if (record && record.status === 'error') throw new Error(record.error || 'Could not start this download.');
+    return id;
   });
 
   ipcMain.handle('downloads:pause', (evt, id) => dm.pause(id));

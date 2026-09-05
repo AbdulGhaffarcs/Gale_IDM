@@ -7,7 +7,10 @@ const { EventEmitter } = require('events');
 
 const DENO_BIN = path.join(os.homedir(), '.deno', 'bin');
 const YTDLP_BIN = path.join(os.homedir(), '.local', 'bin');
+const YTDLP_UPDATE_MARKER = path.join(os.homedir(), '.cache', 'gale', 'yt-dlp-update-check');
+const YTDLP_UPDATE_INTERVAL = 24 * 60 * 60 * 1000;
 const COOKIE_BROWSERS = new Set(['brave', 'chrome', 'chromium', 'edge', 'firefox', 'opera', 'vivaldi']);
+let updatePromise = null;
 
 function getEnhancedPath() {
   return [DENO_BIN, YTDLP_BIN, process.env.PATH].filter(Boolean).join(':');
@@ -38,11 +41,54 @@ function isStreamingUrl(url) {
   const u = url.trim();
   const directFileRe = /\.(zip|rar|7z|tar|gz|bz2|xz|tgz|exe|msi|deb|rpm|appimage|dmg|pkg|apk|iso|mp4|mkv|mov|avi|webm|mp3|flac|wav|ogg|pdf|docx?|xlsx?|pptx?|epub|txt|csv|json|xml|html|css|js|py|java|c|cpp|rs|go)(\?[^]*)?$/i;
   if (directFileRe.test(u)) return false;
+  try {
+    const hostname = new URL(u).hostname.toLowerCase();
+    if (hostname === 'youtu.be' || hostname === 'youtube.com' || hostname.endsWith('.youtube.com')) return true;
+  } catch (_) {
+    return false;
+  }
   return YTDLP_URL_PATTERNS.some((re) => re.test(u));
 }
 
 function findYtDlp() {
-  return ['yt-dlp', '/usr/bin/yt-dlp', '/usr/local/bin/yt-dlp', path.join(YTDLP_BIN, 'yt-dlp')];
+  return [path.join(YTDLP_BIN, 'yt-dlp'), 'yt-dlp', '/usr/bin/yt-dlp', '/usr/local/bin/yt-dlp'];
+}
+
+function readUpdateMarker() {
+  try {
+    return Number(fs.readFileSync(YTDLP_UPDATE_MARKER, 'utf8')) || 0;
+  } catch (_) {
+    return 0;
+  }
+}
+
+function writeUpdateMarker() {
+  try {
+    fs.mkdirSync(path.dirname(YTDLP_UPDATE_MARKER), { recursive: true });
+    fs.writeFileSync(YTDLP_UPDATE_MARKER, String(Date.now()));
+  } catch (_) {
+    // A failed marker only means the next request may check again.
+  }
+}
+
+async function refreshYtDlp(bin) {
+  if (bin !== path.join(YTDLP_BIN, 'yt-dlp') || Date.now() - readUpdateMarker() < YTDLP_UPDATE_INTERVAL) {
+    return;
+  }
+  if (updatePromise) return updatePromise;
+
+  updatePromise = new Promise((resolve) => {
+    execFile(bin, ['-U'], {
+      timeout: 60000,
+      env: { ...process.env, PATH: getEnhancedPath() },
+    }, () => {
+      writeUpdateMarker();
+      resolve();
+    });
+  }).finally(() => {
+    updatePromise = null;
+  });
+  return updatePromise;
 }
 
 function normalizeCookiesBrowser(browser) {
@@ -55,6 +101,8 @@ function commonYtDlpArgs(opts = {}) {
     '--no-warnings',
     '--no-playlist',
     '--remote-components', 'ejs:github',
+    '--retries', '3',
+    '--fragment-retries', '3',
   ];
   const cookiesBrowser = normalizeCookiesBrowser(opts.cookiesBrowser);
   if (cookiesBrowser) args.push('--cookies-from-browser', cookiesBrowser);
@@ -69,6 +117,26 @@ function enhanceYtDlpError(message) {
   return text;
 }
 
+function formatSpecForQuality(quality) {
+  if (quality === 'audio') {
+    return 'bestaudio[ext=m4a]/bestaudio';
+  }
+
+  const height = quality && quality !== 'best' ? parseInt(quality, 10) : 1080;
+  if (Number.isFinite(height)) {
+    return [
+      `best[height<=${height}][ext=mp4]`,
+      `bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]`,
+      `bestvideo[height<=${height}]+bestaudio`,
+      `best[height<=${height}]`,
+      'best[ext=mp4]',
+      'best',
+    ].join('/');
+  }
+
+  return 'best[height<=1080][ext=mp4]/bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080]/best[ext=mp4]/best';
+}
+
 async function checkYtDlpAvailable() {
   const candidates = findYtDlp();
   for (const bin of candidates) {
@@ -79,6 +147,7 @@ async function checkYtDlpAvailable() {
           else resolve(stdout.trim());
         });
       });
+      await refreshYtDlp(bin);
       return bin;
     } catch (_) {
       continue;
@@ -93,7 +162,7 @@ async function getVideoInfo(url, opts = {}) {
 
   return new Promise((resolve, reject) => {
     const proc = spawn(bin, [
-      ...commonYtDlpArgs(opts),
+      ...commonYtDlpArgs({ ...opts, url }),
       '--dump-json',
       url,
     ], {
@@ -177,15 +246,7 @@ function downloadVideo(url, opts = {}) {
       return;
     }
 
-    let formatSpec = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best';
-    if (quality === 'audio') {
-      formatSpec = 'bestaudio[ext=m4a]/bestaudio';
-    } else if (quality && quality !== 'best') {
-      const h = parseInt(quality, 10);
-      if (Number.isFinite(h)) {
-        formatSpec = `bestvideo[height<=${h}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${h}]+bestaudio/best[height<=${h}]/best`;
-      }
-    }
+    const formatSpec = formatSpecForQuality(quality);
 
     const safeName = outputFilename
       ? outputFilename.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_\- ]/g, '_')
@@ -193,7 +254,7 @@ function downloadVideo(url, opts = {}) {
     const outputTemplate = path.join(outputDir || '.', `${safeName}.%(ext)s`);
 
     const args = [
-      ...commonYtDlpArgs({ cookiesBrowser }),
+      ...commonYtDlpArgs({ cookiesBrowser, url }),
       '--newline',
       '--progress',
       '-f', formatSpec,

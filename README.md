@@ -31,7 +31,9 @@ so `npm install` works on any Linux distro without a build toolchain.
 - Linux, with a desktop environment (X11 or Wayland via XWayland).
 - Node.js 18+ and npm.
 - `yt-dlp` on your `PATH` (or in `~/.local/bin`) if you want to download from
-  YouTube/Vimeo/etc. — install with `pip install yt-dlp --break-system-packages`.
+  YouTube/Vimeo/etc. — install with `pip install --user yt-dlp`. Gale checks the
+  user-local copy for updates once per day so YouTube extractor changes do not
+  leave the app stuck on an old version.
   Plain HTTP(S) file downloads don't need it.
 
 ## Setup
@@ -59,7 +61,7 @@ other Debian-based distributions. Install it once using your desktop software
 installer or:
 
 ```bash
-sudo apt install ./dist/gale-download-manager_1.0.1_amd64.deb
+sudo apt install ./dist/gale-download-manager_1.0.3_amd64.deb
 ```
 
 After the first installed release, Gale checks the project's GitHub Releases
