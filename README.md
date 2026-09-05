@@ -157,6 +157,3 @@ test/smoke*.js           Standalone engine tests you can run with plain `node`,
 - Browser integration works with Chromium-based browsers. Firefox support
   would need a separately packaged extension.
 
-## Contributing
-
-See [CONTRIBUTORS.md](CONTRIBUTORS.md) for contribution guidelines.
