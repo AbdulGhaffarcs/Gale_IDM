@@ -16,7 +16,7 @@ so `npm install` works on any Linux distro without a build toolchain.
 - **Clipboard link detection** — copy a link to an installer, archive, video,
   etc. anywhere on your system, and Gale offers to grab it.
 - **Browser integration** — a bundled Chromium extension can send downloads
-  straight to Gale, including via a right-click “Download with Gale” action.
+  straight to Gale, including via a right-click "Download with Gale" action.
 - **Categories** — Compressed / Programs / Video / Music / Documents / Images.
 - **Auto-retry** — a segment that errors or gets truncated (e.g. a flaky
   network, a stale keep-alive socket) is retried with backoff, and byte counts
@@ -156,3 +156,7 @@ test/smoke*.js           Standalone engine tests you can run with plain `node`,
   to catch more or fewer link types.
 - Browser integration works with Chromium-based browsers. Firefox support
   would need a separately packaged extension.
+
+## Contributing
+
+See [CONTRIBUTORS.md](CONTRIBUTORS.md) for contribution guidelines.
