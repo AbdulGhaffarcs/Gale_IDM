@@ -9,7 +9,6 @@ const DENO_BIN = path.join(os.homedir(), '.deno', 'bin');
 const YTDLP_BIN = path.join(os.homedir(), '.local', 'bin');
 const YTDLP_UPDATE_MARKER = path.join(os.homedir(), '.cache', 'gale', 'yt-dlp-update-check');
 const YTDLP_UPDATE_INTERVAL = 24 * 60 * 60 * 1000;
-const COOKIE_BROWSERS = new Set(['brave', 'chrome', 'chromium', 'edge', 'firefox', 'opera', 'vivaldi']);
 let updatePromise = null;
 
 function getEnhancedPath() {
@@ -36,19 +35,54 @@ const YTDLP_URL_PATTERNS = [
   /^https?:\/\/(?:www\.)?tumblr\.com\//i,
 ];
 
+function hostnameOf(url) {
+  try {
+    return new URL(String(url).trim()).hostname.toLowerCase();
+  } catch (_) {
+    return '';
+  }
+}
+
+function isYouTubeUrl(url) {
+  const hostname = hostnameOf(url);
+  return hostname === 'youtu.be' || hostname === 'youtube.com' || hostname.endsWith('.youtube.com');
+}
+
 function isStreamingUrl(url) {
   if (!url) return false;
   const u = url.trim();
   const directFileRe = /\.(zip|rar|7z|tar|gz|bz2|xz|tgz|exe|msi|deb|rpm|appimage|dmg|pkg|apk|iso|mp4|mkv|mov|avi|webm|mp3|flac|wav|ogg|pdf|docx?|xlsx?|pptx?|epub|txt|csv|json|xml|html|css|js|py|java|c|cpp|rs|go)(\?[^]*)?$/i;
   if (directFileRe.test(u)) return false;
-  try {
-    const hostname = new URL(u).hostname.toLowerCase();
-    if (hostname === 'youtu.be' || hostname === 'youtube.com' || hostname.endsWith('.youtube.com')) return true;
-  } catch (_) {
-    return false;
-  }
+  if (!hostnameOf(u)) return false;
+  if (isYouTubeUrl(u)) return true;
   return YTDLP_URL_PATTERNS.some((re) => re.test(u));
 }
+
+/**
+ * Ordered `player_client` values tried for YouTube downloads.
+ *
+ * YouTube's default (unqualified) client set frequently yields metadata fine but
+ * hands back media URLs that are rejected with `HTTP Error 403: Forbidden`, so
+ * relying on it makes every YouTube download fail. Naming a client explicitly
+ * avoids that. Which clients work rotates over time - some get throttled, some
+ * start requiring a PO token - so `downloadVideo` walks this list and retries on
+ * the next entry whenever a run fails. `null` means "no --extractor-args", i.e.
+ * let yt-dlp pick, which is kept as the last resort.
+ *
+ * The high-resolution clients (web_embedded / *_creator) are preferred because
+ * they still expose 1080p+ streams, while mweb / tv_simply / web are the
+ * dependable-but-360p-only fallbacks.
+ */
+const YOUTUBE_CLIENT_ATTEMPTS = [
+  'web_embedded',
+  'mweb',
+  'tv_simply',
+  'web',
+  'android_vr',
+  'android_creator',
+  'ios_creator',
+  null,
+];
 
 function findYtDlp() {
   return [path.join(YTDLP_BIN, 'yt-dlp'), 'yt-dlp', '/usr/bin/yt-dlp', '/usr/local/bin/yt-dlp'];
@@ -91,11 +125,6 @@ async function refreshYtDlp(bin) {
   return updatePromise;
 }
 
-function normalizeCookiesBrowser(browser) {
-  const value = String(browser || '').trim().toLowerCase();
-  return COOKIE_BROWSERS.has(value) ? value : null;
-}
-
 function commonYtDlpArgs(opts = {}) {
   const args = [
     '--no-warnings',
@@ -104,17 +133,32 @@ function commonYtDlpArgs(opts = {}) {
     '--retries', '3',
     '--fragment-retries', '3',
   ];
-  const cookiesBrowser = normalizeCookiesBrowser(opts.cookiesBrowser);
-  if (cookiesBrowser) args.push('--cookies-from-browser', cookiesBrowser);
+  // Only YouTube needs a pinned player client; passing --extractor-args for
+  // other extractors can break sites that do not define that option.
+  const { url, playerClient } = opts;
+  if (playerClient && isYouTubeUrl(url)) {
+    args.push('--extractor-args', `youtube:player_client=${playerClient}`);
+  }
   return args;
 }
 
 function enhanceYtDlpError(message) {
   const text = String(message || '').trim() || 'yt-dlp failed';
-  if (/sign in|not a bot|captcha|cookies|age[- ]restricted|private video|members-only|http error 403|po token/i.test(text)) {
-    return `${text}\n\nYouTube blocked the request. Open Gale Settings and set "YouTube cookies" to the browser where YouTube works, then retry the download. Some YouTube videos may also require a PO Token in yt-dlp.`;
+  if (/sign in|not a bot|captcha|age[- ]restricted|private video|members-only|http error 403|po token/i.test(text)) {
+    return `${text}\n\nYouTube blocked this request. Try updating yt-dlp and verify that the video is public and available in your region.`;
   }
   return text;
+}
+
+/**
+ * Failures that another player client cannot fix, so retrying them would just
+ * make the user wait through every client before seeing the real reason.
+ * Deliberately narrow: 403s, bot checks and throttling are all retryable.
+ */
+function isPermanentYtDlpError(text) {
+  return /private video|this video has been removed|video unavailable|account associated with this video has been terminated|unsupported url|incomplete youtube id|not available in your country|geo[- ]?restricted|drm|paid member|members[- ]only|confirm your age|age[- ]restricted/i.test(
+    String(text || '')
+  );
 }
 
 function formatSpecForQuality(quality) {
@@ -122,19 +166,17 @@ function formatSpecForQuality(quality) {
     return 'bestaudio[ext=m4a]/bestaudio';
   }
 
-  const height = quality && quality !== 'best' ? parseInt(quality, 10) : 1080;
+  const height = quality && quality !== 'best' ? parseInt(quality, 10) : null;
   if (Number.isFinite(height)) {
     return [
-      `best[height<=${height}][ext=mp4]`,
+      `bestvideo[height<=${height}]+bestaudio/best[height<=${height}]`,
       `bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]`,
-      `bestvideo[height<=${height}]+bestaudio`,
       `best[height<=${height}]`,
-      'best[ext=mp4]',
       'best',
     ].join('/');
   }
 
-  return 'best[height<=1080][ext=mp4]/bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080]/best[ext=mp4]/best';
+  return 'bestvideo+bestaudio/best';
 }
 
 async function checkYtDlpAvailable() {
@@ -221,7 +263,6 @@ function downloadVideo(url, opts = {}) {
     outputDir,
     outputFilename,
     quality,
-    cookiesBrowser,
   } = opts;
 
   const emitter = new EventEmitter();
@@ -253,90 +294,125 @@ function downloadVideo(url, opts = {}) {
       : '%(title)s';
     const outputTemplate = path.join(outputDir || '.', `${safeName}.%(ext)s`);
 
-    const args = [
-      ...commonYtDlpArgs({ cookiesBrowser, url }),
-      '--newline',
-      '--progress',
-      '-f', formatSpec,
-      '--merge-output-format', 'mp4',
-      '-o', outputTemplate,
-      '--continue',
-      '--part',
-      '--no-overwrites',
-      url,
-    ];
+    // Non-YouTube extractors keep yt-dlp's own client selection.
+    const attempts = isYouTubeUrl(url) ? YOUTUBE_CLIENT_ATTEMPTS : [null];
 
-    proc = spawn(bin, args, {
-      timeout: 0,
-      env: { ...process.env, PATH: getEnhancedPath() },
+    /** Spawn one yt-dlp run and resolve with its exit code. */
+    const runOnce = (playerClient) => new Promise((resolve) => {
+      const args = [
+        ...commonYtDlpArgs({ url, playerClient }),
+        '--newline',
+        '--progress',
+        '-f', formatSpec,
+        '-o', outputTemplate,
+        '--continue',
+        '--part',
+        '--no-overwrites',
+        url,
+      ];
+
+      proc = spawn(bin, args, {
+        timeout: 0,
+        env: { ...process.env, PATH: getEnhancedPath() },
+      });
+      emitter_api.process = proc;
+
+      let stderr = '';
+      let settled = false;
+      let spawnFailed = false;
+
+      proc.stdout.on('data', (chunk) => {
+        if (cancelled) return;
+        const lines = chunk.toString().split('\n').filter(Boolean);
+        for (const line of lines) {
+          const destMatch = line.match(/\[download\]\s+Destination:\s+(.+)/);
+          if (destMatch) {
+            emitter.emit('destination', destMatch[1].trim());
+            continue;
+          }
+
+          const alreadyMatch = line.match(/\[download\]\s+(.+)\s+has already been downloaded/);
+          if (alreadyMatch) {
+            emitter.emit('destination', alreadyMatch[1].trim());
+            continue;
+          }
+
+          if (line.includes('[Merger]') || line.includes('Merging')) {
+            // When yt-dlp downloads a video-only and an audio-only stream it
+            // first reports each *intermediate* file as the destination, then
+            // merges them into the real output and deletes the intermediates.
+            // The merge target is the only path that survives on disk, so it has
+            // to be the destination we report last - otherwise the download row
+            // points at a file that no longer exists.
+            const mergeMatch = line.match(/^\[Merger\]\s*Merging formats into\s+"(.+)"\s*$/);
+            if (mergeMatch) emitter.emit('destination', mergeMatch[1].trim());
+            emitter.emit('merging', true);
+            continue;
+          }
+
+          const pctMatch = line.match(/\[download\]\s+([\d.]+)%/);
+          if (pctMatch) {
+            const percent = parseFloat(pctMatch[1]);
+            const speedMatch = line.match(/at\s+([\d.]+\S*\/s)/);
+            const etaMatch = line.match(/ETA\s+(\S+)/);
+            const sizeMatch = line.match(/of\s+~?([\d.]+\S*)/);
+            emitter.emit('progress', {
+              percent,
+              speed: speedMatch ? speedMatch[1] : '',
+              eta: etaMatch ? etaMatch[1] : '',
+              totalSize: sizeMatch ? sizeMatch[1] : '',
+            });
+            continue;
+          }
+
+          if (line.includes('[download] 100%')) {
+            emitter.emit('progress', {
+              percent: 100,
+              speed: '',
+              eta: '',
+              totalSize: '',
+            });
+          }
+        }
+      });
+
+      proc.stderr.on('data', (chunk) => {
+        stderr += chunk.toString();
+      });
+
+      const finish = (code) => {
+        if (settled) return;
+        settled = true;
+        if (proc && !proc.killed) proc = null;
+        emitter_api.process = null;
+        resolve({ code, stderr, spawnFailed });
+      };
+
+      proc.on('close', (code) => finish(code));
+      proc.on('error', (err) => {
+        stderr += err.message;
+        // The binary vanished or is not executable - no client choice helps.
+        spawnFailed = true;
+        finish(null);
+      });
     });
-    emitter_api.process = proc;
 
-    let stderr = '';
-
-    proc.stdout.on('data', (chunk) => {
+    let lastError = null;
+    for (const playerClient of attempts) {
       if (cancelled) return;
-      const lines = chunk.toString().split('\n').filter(Boolean);
-      for (const line of lines) {
-        const destMatch = line.match(/\[download\]\s+Destination:\s+(.+)/);
-        if (destMatch) {
-          emitter.emit('destination', destMatch[1].trim());
-          continue;
-        }
-
-        const alreadyMatch = line.match(/\[download\]\s+(.+)\s+has already been downloaded/);
-        if (alreadyMatch) {
-          emitter.emit('destination', alreadyMatch[1].trim());
-          continue;
-        }
-
-        if (line.includes('[Merger]') || line.includes('Merging')) {
-          emitter.emit('merging', true);
-          continue;
-        }
-
-        const pctMatch = line.match(/\[download\]\s+([\d.]+)%/);
-        if (pctMatch) {
-          const percent = parseFloat(pctMatch[1]);
-          const speedMatch = line.match(/at\s+([\d.]+\S*\/s)/);
-          const etaMatch = line.match(/ETA\s+(\S+)/);
-          const sizeMatch = line.match(/of\s+~?([\d.]+\S*)/);
-          emitter.emit('progress', {
-            percent,
-            speed: speedMatch ? speedMatch[1] : '',
-            eta: etaMatch ? etaMatch[1] : '',
-            totalSize: sizeMatch ? sizeMatch[1] : '',
-          });
-          continue;
-        }
-
-        if (line.includes('[download] 100%')) {
-          emitter.emit('progress', {
-            percent: 100,
-            speed: '',
-            eta: '',
-            totalSize: '',
-          });
-        }
-      }
-    });
-
-    proc.stderr.on('data', (chunk) => {
-      stderr += chunk.toString();
-    });
-
-    proc.on('close', (code) => {
+      const { code, stderr, spawnFailed } = await runOnce(playerClient);
       if (cancelled) return;
       if (code === 0) {
         emitter.emit('done', { success: true });
-      } else {
-        emitter.emit('error', new Error(enhanceYtDlpError(stderr || `yt-dlp exited with code ${code}`)));
+        return;
       }
-    });
-
-    proc.on('error', (err) => {
-      if (!cancelled) emitter.emit('error', new Error(enhanceYtDlpError(err.message)));
-    });
+      lastError = new Error(enhanceYtDlpError(stderr || `yt-dlp exited with code ${code}`));
+      if (spawnFailed) break;
+      if (isPermanentYtDlpError(stderr)) break;
+      // Retry the next client. --continue resumes any bytes already fetched, and
+      // the destination is fixed by the output template, so retrying is cheap.
+    }
+    emitter.emit('error', lastError || new Error('yt-dlp failed'));
   })();
 
   return { emitter, api: emitter_api };
@@ -344,6 +420,7 @@ function downloadVideo(url, opts = {}) {
 
 module.exports = {
   isStreamingUrl,
+  isYouTubeUrl,
   checkYtDlpAvailable,
   getVideoInfo,
   downloadVideo,

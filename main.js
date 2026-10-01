@@ -232,7 +232,7 @@ function wireIpc() {
   ipcMain.handle('ytdlp:checkAvailable', () => checkYtDlpAvailable());
   ipcMain.handle('ytdlp:getInfo', async (evt, url) => {
     try {
-      return await getVideoInfo(url, { cookiesBrowser: dm.settings.ytdlpCookiesBrowser });
+      return await getVideoInfo(url);
     } catch (err) {
       throw new Error(err.message);
     }
