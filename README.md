@@ -1,8 +1,25 @@
 # Gale — a Download Manager for Linux
 
-A fast, segmented, IDM-style download manager, built with Electron. No native
-compiled dependencies (no `better-sqlite3`, no `sharp`) — just Electron itself,
-so `npm install` works on any Linux distro without a build toolchain.
+<p align="center">
+  <img src="https://img.shields.io/badge/Linux-Ready-5c7cfa?style=for-the-badge&logo=linux&logoColor=white" alt="Linux ready" />
+  <img src="https://img.shields.io/badge/Electron-31.x-2b2d42?style=for-the-badge&logo=electron&logoColor=white" alt="Electron version" />
+  <img src="https://img.shields.io/badge/Node.js-18%2B-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js 18+" />
+  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT license" />
+</p>
+
+Gale is a fast, segmented, IDM-style download manager for Linux built with
+Electron. It focuses on resumable downloads, queue control, browser
+integration, and a lightweight desktop experience without native compiled
+dependencies. That means `npm install` works on most Linux distributions without
+requiring a full build toolchain.
+
+## Why Gale?
+
+- High-speed downloads with segmented HTTP range requests
+- Pause and resume support that survives app restarts
+- Built-in clipboard and browser integration for quicker downloads
+- Smart retry logic and validation to reduce partial-download corruption
+- A lightweight, tray-based desktop experience for Linux users
 
 ## Features
 
@@ -36,10 +53,11 @@ so `npm install` works on any Linux distro without a build toolchain.
   leave the app stuck on an old version.
   Plain HTTP(S) file downloads don't need it.
 
-## Setup
+## Quick start
 
 ```bash
-cd gale-download-manager
+git clone https://github.com/AbdulGhaffarcs/Gale_IDM.git
+cd Gale_IDM
 npm install
 npm start
 ```
@@ -83,7 +101,7 @@ git push origin main --follow-tags
 
 GitHub Actions builds the AppImage and `.deb`, creates the GitHub Release, and
 uploads the update metadata used by installed copies of Gale. The first
-release should be tagged `v1.0.1` for this version.
+release should be tagged `v1.0.4` for this version.
 
 ## Browser integration (Chrome, Chromium, Brave, Edge)
 
