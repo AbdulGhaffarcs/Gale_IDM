@@ -468,6 +468,7 @@ el('btn-stop-queue').addEventListener('click', async () => {
 
 let defaultDir = '';
 let isStreamingUrlDetected = false;
+let isYouTubePlaylistDetected = false;
 let detectUrlRequest = 0;
 let addRequestInFlight = false;
 
@@ -487,14 +488,18 @@ async function detectUrlType(url) {
   const requestId = ++detectUrlRequest;
   if (!url) {
     isStreamingUrlDetected = false;
+    isYouTubePlaylistDetected = false;
     el('add-quality-row').classList.add('hidden');
     el('add-segments-row').classList.remove('hidden');
+    el('add-playlist-row').classList.add('hidden');
     return;
   }
   try {
     const streaming = await window.gale.isStreamingUrl(url);
     if (requestId !== detectUrlRequest) return streaming;
     isStreamingUrlDetected = streaming;
+    isYouTubePlaylistDetected = /^https?:\/\/(?:[\w-]+\.)?youtube\.com\//i.test(url)
+      && /[?&]list=[^&]+/i.test(url);
     if (streaming) {
       el('add-quality-row').classList.remove('hidden');
       el('add-segments-row').classList.add('hidden');
@@ -502,11 +507,14 @@ async function detectUrlType(url) {
       el('add-quality-row').classList.add('hidden');
       el('add-segments-row').classList.remove('hidden');
     }
+    el('add-playlist-row').classList.toggle('hidden', !isYouTubePlaylistDetected);
   } catch (_) {
     if (requestId !== detectUrlRequest) return false;
     isStreamingUrlDetected = false;
+    isYouTubePlaylistDetected = false;
     el('add-quality-row').classList.add('hidden');
     el('add-segments-row').classList.remove('hidden');
+    el('add-playlist-row').classList.add('hidden');
   }
 }
 
@@ -539,7 +547,9 @@ el('add-confirm').addEventListener('click', async () => {
     if (isStreamingUrlDetected) {
       opts.quality = quality;
     }
-    await window.gale.addDownload(url, opts);
+    await (isYouTubePlaylistDetected && el('add-playlist').checked
+      ? await window.gale.addPlaylist(url, opts)
+      : await window.gale.addDownload(url, opts));
     closeAddModal();
     refresh();
   } catch (err) {

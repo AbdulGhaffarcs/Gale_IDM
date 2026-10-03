@@ -183,6 +183,11 @@ function wireIpc() {
     if (record && record.status === 'error') throw new Error(record.error || 'Could not start this download.');
     return id;
   });
+  ipcMain.handle('downloads:addPlaylist', async (evt, url, opts) => {
+    const normalizedUrl = String(url || '').trim();
+    if (!/^https?:\/\//i.test(normalizedUrl)) throw new Error('Please enter a valid YouTube playlist URL');
+    return dm.addPlaylist(normalizedUrl, opts || {});
+  });
 
   ipcMain.handle('downloads:pause', (evt, id) => dm.pause(id));
   ipcMain.handle('downloads:resume', (evt, id) => dm.resume(id));

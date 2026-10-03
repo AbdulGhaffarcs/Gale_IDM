@@ -6,7 +6,7 @@ const https = require('https');
 const crypto = require('crypto');
 const { EventEmitter } = require('events');
 const { categorize } = require('./categorize');
-const { isStreamingUrl, getVideoInfo, downloadVideo } = require('./ytDlp');
+const { isStreamingUrl, getVideoInfo, getPlaylistInfo, downloadVideo } = require('./ytDlp');
 
 const MAX_REDIRECTS = 8;
 const MAX_RETRIES = 4;
@@ -252,7 +252,7 @@ class DownloadManager extends EventEmitter {
 
     if (isStreamingUrl(url)) {
       try {
-        const info = await getVideoInfo(url);
+        const info = opts.videoInfo || await getVideoInfo(url);
         const filename = this._uniqueFilename(record.dir, opts.filename || `${info.title}.mp4`);
         record.filename = filename;
         record.totalSize = null;
@@ -281,6 +281,25 @@ class DownloadManager extends EventEmitter {
     this.persist();
     this._scheduleNext();
     return id;
+  }
+
+  async addPlaylist(url, opts = {}) {
+    const playlist = await getPlaylistInfo(url);
+    const playlistDir = path.join(opts.dir || this.settings.downloadDir, this._safeFilename(playlist.title));
+    const width = String(playlist.entries.length).length;
+    const ids = [];
+
+    for (const entry of playlist.entries) {
+      const prefix = String(entry.index).padStart(width, '0');
+      const id = await this.addDownload(entry.url, {
+        ...opts,
+        dir: playlistDir,
+        filename: `${prefix} - ${entry.title}.mp4`,
+        videoInfo: { title: entry.title },
+      });
+      ids.push(id);
+    }
+    return { title: playlist.title, count: ids.length, ids };
   }
 
   _safeFilename(filename) {

@@ -4,6 +4,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('gale', {
   listDownloads: () => ipcRenderer.invoke('downloads:list'),
   addDownload: (url, opts) => ipcRenderer.invoke('downloads:add', url, opts),
+  addPlaylist: (url, opts) => ipcRenderer.invoke('downloads:addPlaylist', url, opts),
   pause: (id) => ipcRenderer.invoke('downloads:pause', id),
   resume: (id) => ipcRenderer.invoke('downloads:resume', id),
   remove: (id, deleteFile) => ipcRenderer.invoke('downloads:remove', id, deleteFile),

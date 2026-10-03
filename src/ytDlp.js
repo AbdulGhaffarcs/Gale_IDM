@@ -128,14 +128,14 @@ async function refreshYtDlp(bin) {
 function commonYtDlpArgs(opts = {}) {
   const args = [
     '--no-warnings',
-    '--no-playlist',
     '--remote-components', 'ejs:github',
     '--retries', '3',
     '--fragment-retries', '3',
   ];
   // Only YouTube needs a pinned player client; passing --extractor-args for
   // other extractors can break sites that do not define that option.
-  const { url, playerClient } = opts;
+  const { url, playerClient, noPlaylist = true } = opts;
+  if (noPlaylist) args.splice(1, 0, '--no-playlist');
   if (playerClient && isYouTubeUrl(url)) {
     args.push('--extractor-args', `youtube:player_client=${playerClient}`);
   }
@@ -255,6 +255,49 @@ async function getVideoInfo(url, opts = {}) {
     proc.on('error', (err) => {
       reject(new Error(enhanceYtDlpError(`Failed to run yt-dlp: ${err.message}`)));
     });
+  });
+}
+
+/**
+ * Resolve a YouTube playlist without fetching media.  The returned entries use
+ * plain watch URLs so each queued item is downloaded as one video, rather than
+ * re-expanding the playlist when its turn begins.
+ */
+async function getPlaylistInfo(url) {
+  if (!isYouTubeUrl(url)) throw new Error('Playlist downloads are available for YouTube URLs only.');
+  const bin = await checkYtDlpAvailable();
+  if (!bin) throw new Error('yt-dlp is not installed. Install it with: pip install yt-dlp');
+
+  return new Promise((resolve, reject) => {
+    const proc = spawn(bin, [
+      ...commonYtDlpArgs({ url, noPlaylist: false }),
+      '--flat-playlist',
+      '--dump-single-json',
+      url,
+    ], {
+      timeout: 60000,
+      env: { ...process.env, PATH: getEnhancedPath() },
+    });
+    let stdout = '';
+    let stderr = '';
+    proc.stdout.on('data', (chunk) => { stdout += chunk; });
+    proc.stderr.on('data', (chunk) => { stderr += chunk; });
+    proc.on('close', (code) => {
+      if (code !== 0) return reject(new Error(enhanceYtDlpError(stderr || `yt-dlp exited with code ${code}`)));
+      try {
+        const info = JSON.parse(stdout);
+        const entries = (info.entries || []).map((entry, index) => {
+          const id = entry.id || '';
+          const watchUrl = entry.webpage_url || (id ? `https://www.youtube.com/watch?v=${encodeURIComponent(id)}` : null);
+          return { index: entry.playlist_index || index + 1, title: entry.title || `Video ${index + 1}`, url: watchUrl };
+        }).filter((entry) => entry.url);
+        if (!entries.length) throw new Error('This playlist has no downloadable videos.');
+        resolve({ title: info.title || 'YouTube Playlist', entries });
+      } catch (err) {
+        reject(new Error(enhanceYtDlpError(`Failed to parse playlist information: ${err.message}`)));
+      }
+    });
+    proc.on('error', (err) => reject(new Error(enhanceYtDlpError(`Failed to run yt-dlp: ${err.message}`))));
   });
 }
 
@@ -423,5 +466,6 @@ module.exports = {
   isYouTubeUrl,
   checkYtDlpAvailable,
   getVideoInfo,
+  getPlaylistInfo,
   downloadVideo,
 };
