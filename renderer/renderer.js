@@ -472,6 +472,17 @@ let isYouTubePlaylistDetected = false;
 let detectUrlRequest = 0;
 let addRequestInFlight = false;
 
+function isYouTubePlaylistUrl(value) {
+  try {
+    const parsed = new URL(String(value || '').trim());
+    const host = parsed.hostname.toLowerCase();
+    const isYouTube = host === 'youtu.be' || host === 'youtube.com' || host.endsWith('.youtube.com');
+    return isYouTube && Boolean(parsed.searchParams.get('list'));
+  } catch (_) {
+    return false;
+  }
+}
+
 async function openAddModal(prefillUrl) {
   const settings = await window.gale.getSettings();
   defaultDir = settings.downloadDir;
@@ -486,6 +497,7 @@ async function openAddModal(prefillUrl) {
 
 async function detectUrlType(url) {
   const requestId = ++detectUrlRequest;
+  const playlistUrl = isYouTubePlaylistUrl(url);
   if (!url) {
     isStreamingUrlDetected = false;
     isYouTubePlaylistDetected = false;
@@ -497,10 +509,9 @@ async function detectUrlType(url) {
   try {
     const streaming = await window.gale.isStreamingUrl(url);
     if (requestId !== detectUrlRequest) return streaming;
-    isStreamingUrlDetected = streaming;
-    isYouTubePlaylistDetected = /^https?:\/\/(?:[\w-]+\.)?youtube\.com\//i.test(url)
-      && /[?&]list=[^&]+/i.test(url);
-    if (streaming) {
+    isYouTubePlaylistDetected = playlistUrl;
+    isStreamingUrlDetected = streaming || playlistUrl;
+    if (isStreamingUrlDetected) {
       el('add-quality-row').classList.remove('hidden');
       el('add-segments-row').classList.add('hidden');
     } else {
@@ -511,10 +522,10 @@ async function detectUrlType(url) {
   } catch (_) {
     if (requestId !== detectUrlRequest) return false;
     isStreamingUrlDetected = false;
-    isYouTubePlaylistDetected = false;
+    isYouTubePlaylistDetected = playlistUrl;
     el('add-quality-row').classList.add('hidden');
     el('add-segments-row').classList.remove('hidden');
-    el('add-playlist-row').classList.add('hidden');
+    el('add-playlist-row').classList.toggle('hidden', !playlistUrl);
   }
 }
 
